@@ -50,6 +50,7 @@
       line-height: 1;
       color: #e2e8f0;
       text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      text-transform: uppercase; /* Вернули верхний регистр */
     }
 
     .cover-container {
@@ -347,7 +348,6 @@
 
       const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
       
-      // ИСКЛЮЧАЕМ постоянное переписывание текста и сброс DOM-дерева
       if (currentTrackText !== fullText) {
         currentTrackText = fullText;
         trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
