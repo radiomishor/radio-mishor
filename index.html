@@ -8,10 +8,10 @@
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
-  <!-- Google Fonts: Lexend -->
+  <!-- Google Fonts: Lexend + Barriecito -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barriecito&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
     * {
@@ -41,26 +41,26 @@
       margin-top: 10px;
     }
 
+    /* Логотип с шрифтом Barriecito */
     .logo {
-      font-size: 38px;
-      font-weight: 700;
-      letter-spacing: -1px;
-      color: #000000;
-    }
-
-    .logo span {
+      font-family: 'Barriecito', cursive;
+      font-size: 42px;
       font-weight: 400;
+      letter-spacing: 1px;
+      color: #000000;
+      line-height: 1;
     }
 
+    /* Тонкая и изящная рамка обложки */
     .cover-container {
       width: 100%;
       max-width: 330px;
       aspect-ratio: 1 / 1;
       position: relative;
-      border-radius: 8px;
+      border-radius: 12px;
       background: #e8e2d7;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-      padding: 8px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.03);
+      padding: 4px; /* Утонченная рамка */
       display: flex;
       justify-content: center;
       align-items: center;
@@ -71,7 +71,7 @@
       height: 100%;
       position: relative;
       overflow: hidden;
-      border-radius: 4px;
+      border-radius: 9px;
     }
 
     .cover-image {
@@ -82,7 +82,7 @@
       top: 0;
       left: 0;
       opacity: 0;
-      transition: opacity 0.8s ease-in-out;
+      transition: opacity 0.6s ease-in-out;
     }
 
     .cover-image.active {
@@ -170,9 +170,10 @@
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
     }
 
+    /* Увеличенные иконки */
     .play-btn svg {
-      width: 22px;
-      height: 22px;
+      width: 28px;
+      height: 28px;
       fill: #000000;
       transition: all 0.2s ease;
     }
@@ -181,12 +182,12 @@
 <body>
 
   <header class="header">
-    <h1 class="logo">Rad<span>io</span> Mishor</h1>
+    <h1 class="logo">Radio Mishor</h1>
   </header>
 
   <main class="cover-container">
     <div class="cover-wrapper">
-      <img id="coverA" class="cover-image active" src="" alt="Album Cover A">
+      <img id="coverA" class="cover-image" src="" alt="Album Cover A">
       <img id="coverB" class="cover-image" src="" alt="Album Cover B">
     </div>
   </main>
@@ -199,8 +200,9 @@
     </div>
 
     <button id="playBtn" class="play-btn" aria-label="Play">
+      <!-- Увеличенный Play со скругленными углами -->
       <svg id="playIcon" viewBox="0 0 24 24">
-        <path d="M8 5v14l11-7z"/>
+        <path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>
       </svg>
     </button>
   </footer>
@@ -217,7 +219,6 @@
     let playlist = [];
     let totalPlaylistDuration = 0;
     let isPlaying = false;
-    let currentCoverUrl = '';
 
     let activePlayer = 'A';
     
@@ -232,8 +233,9 @@
     const coverA = document.getElementById('coverA');
     const coverB = document.getElementById('coverB');
 
-    const PLAY_ICON = '<path d="M8 5v14l11-7z"/>';
-    const STOP_ICON = '<path d="M6 6h12v12H6z"/>';
+    // Крупные иконки с мягкими углами
+    const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
+    const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5" ry="2.5"/>';
 
     async function loadPlaylist() {
       try {
@@ -242,10 +244,8 @@
         
         totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
         
-        // Первичное обновление текста и обложки без воспроизведения
         updateLiveState(false);
         
-        // Интервал синхронизации
         setInterval(() => {
           updateLiveState(isPlaying);
         }, 1000);
@@ -288,7 +288,6 @@
         trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
       }
 
-      // Обновляем обложку
       updateCover(live.currentTrack.cover);
 
       if (!shouldPlayAudio) return;
@@ -296,7 +295,6 @@
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
       const secondaryAudio = activePlayer === 'A' ? audioB : audioA;
 
-      // Если трек изменился
       if (primaryAudio.src !== live.currentTrack.url) {
         primaryAudio.src = live.currentTrack.url;
         primaryAudio.currentTime = live.trackTime;
@@ -305,12 +303,10 @@
 
         secondaryAudio.pause();
       } else {
-        // Корректировка рассинхрона
         if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
           primaryAudio.currentTime = live.trackTime;
         }
 
-        // Кроссфейд
         const timeLeft = live.currentTrack.duration - live.trackTime;
         if (timeLeft <= CROSSFADE_DURATION && timeLeft > 0) {
           const nextTrackIndex = (live.trackIndex + 1) % playlist.length;
@@ -336,20 +332,26 @@
       }
     }
 
-    // НАДЕЖНАЯ СМЕНА ОБЛОЖЕК
     function updateCover(coverUrl) {
-      if (!coverUrl || currentCoverUrl === coverUrl) return;
-      currentCoverUrl = coverUrl;
+      if (!coverUrl) return;
 
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = activeImg === coverA ? coverB : coverA;
 
+      if (activeImg.src === coverUrl || nextImg.src === coverUrl) return;
+
       nextImg.src = coverUrl;
-      nextImg.classList.add('active');
-      activeImg.classList.remove('active');
+
+      nextImg.onload = () => {
+        nextImg.classList.add('active');
+        activeImg.classList.remove('active');
+      };
+
+      nextImg.onerror = () => {
+        console.error('Ошибка загрузки обложки:', coverUrl);
+      };
     }
 
-    // УПРАВЛЕНИЕ PLAY / PAUSE
     playBtn.addEventListener('click', () => {
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
 
@@ -359,13 +361,10 @@
         
         const live = getLivePosition();
         if (live.currentTrack) {
-          // Если источник тот же, просто синхронизируем время и играем
-          if (primaryAudio.src === live.currentTrack.url) {
-            primaryAudio.currentTime = live.trackTime;
-          } else {
+          if (primaryAudio.src !== live.currentTrack.url) {
             primaryAudio.src = live.currentTrack.url;
-            primaryAudio.currentTime = live.trackTime;
           }
+          primaryAudio.currentTime = live.trackTime;
           primaryAudio.volume = 1;
           primaryAudio.play().catch(e => console.log('Play click error:', e));
         }
