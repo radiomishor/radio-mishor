@@ -45,7 +45,7 @@
     .logo {
       font-family: 'Urbanist', sans-serif;
       font-size: 34px;
-      font-weight: 600; /* Было 800, поставили 600 для более утонченного вида */
+      font-weight: 600;
       letter-spacing: -0.3px;
       line-height: 1;
       color: #e2e8f0;
@@ -89,7 +89,7 @@
       opacity: 1;
     }
 
-    /* Стили плашки Buy Track поверх обложки */
+    /* Стили плашки Buy Track */
     .buy-btn {
       position: absolute;
       top: 12px;
@@ -171,14 +171,17 @@
       }
     }
 
+    /* Оптимизированный контейнер текста */
     .track-info {
       flex: 1;
       overflow: hidden;
       white-space: nowrap;
       position: relative;
+      mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
     }
 
-    /* Плавная бегущая строка с ускорением GPU */
+    /* Идеально плавная бегущая строка */
     .track-marquee {
       font-family: 'Urbanist', sans-serif;
       display: inline-block;
@@ -188,13 +191,16 @@
       color: #e2e8f0;
       white-space: nowrap;
       padding-left: 0%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      perspective: 1000px;
       will-change: transform;
-      animation: marquee 8s linear infinite;
+      animation: marquee 12s linear infinite;
     }
 
     @keyframes marquee {
       0% { 
-        transform: translate3d(0%, 0, 0); 
+        transform: translate3d(0, 0, 0); 
       }
       100% { 
         transform: translate3d(-50%, 0, 0); 
@@ -238,7 +244,6 @@
 
   <main class="cover-container">
     <div class="cover-wrapper">
-      <!-- Плашка Buy Track -->
       <a id="buyBtn" class="buy-btn" href="#" target="_blank" aria-label="Buy Track">
         <span>Buy Track</span>
         <svg viewBox="0 0 24 24">
@@ -272,12 +277,13 @@
     }
 
     const PLAYLIST_URL = 'playlist.json';
-    const CROSSFADE_DURATION = 5; // Кросс-фейд за 5 секунд до конца трека
+    const CROSSFADE_DURATION = 5;
 
     let playlist = [];
     let totalPlaylistDuration = 0;
     let isPlaying = false;
     let currentBuyUrl = '';
+    let currentTrackText = '';
 
     let activePlayer = 'A';
     const audioA = new Audio();
@@ -303,7 +309,6 @@
         
         updateLiveState(false);
         
-        // Быстрый интервал (100 мс) для ультра-плавной регулировки громкости кросс-фейда
         setInterval(() => {
           updateLiveState(isPlaying);
         }, 100);
@@ -341,20 +346,20 @@
       if (!live.currentTrack) return;
 
       const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
-      if (trackTitle.dataset.current !== fullText) {
-        trackTitle.dataset.current = fullText;
-        trackTitle.innerText = `${fullText} • ${fullText} • `;
+      
+      // ИСКЛЮЧАЕМ постоянное переписывание текста и сброс DOM-дерева
+      if (currentTrackText !== fullText) {
+        currentTrackText = fullText;
+        trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+        updateCover(live.currentTrack.cover);
+        updateBuyButton(live.currentTrack.buy_url);
       }
-
-      updateCover(live.currentTrack.cover);
-      updateBuyButton(live.currentTrack.buy_url);
 
       if (!shouldPlayAudio) return;
 
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
       const secondaryAudio = activePlayer === 'A' ? audioB : audioA;
 
-      // Если основной плеер еще не играет нужный трек
       if (primaryAudio.src !== live.currentTrack.url) {
         primaryAudio.src = live.currentTrack.url;
         primaryAudio.currentTime = live.trackTime;
@@ -364,19 +369,16 @@
         secondaryAudio.pause();
         secondaryAudio.volume = 0;
       } else {
-        // Мягкая корректировка рассинхрона
         if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
           primaryAudio.currentTime = live.trackTime;
         }
 
         const timeLeft = live.currentTrack.duration - live.trackTime;
 
-        // ЗОНА КРОСС-ФЕЙДА (последние 5 секунд трека)
         if (timeLeft <= CROSSFADE_DURATION && timeLeft > 0) {
           const nextTrackIndex = (live.trackIndex + 1) % playlist.length;
           const nextTrack = playlist[nextTrackIndex];
 
-          // Подготавливаем и запускаем второй плеер заранее
           if (secondaryAudio.src !== nextTrack.url) {
             secondaryAudio.src = nextTrack.url;
             secondaryAudio.currentTime = 0;
@@ -384,13 +386,11 @@
             secondaryAudio.play().catch(e => console.log('Crossfade preload blocked'));
           }
 
-          // Вычисляем прогресс затухания от 0 до 1
           const fadeProgress = (CROSSFADE_DURATION - timeLeft) / CROSSFADE_DURATION;
           
           primaryAudio.volume = Math.max(0, Math.min(1, 1 - fadeProgress));
           secondaryAudio.volume = Math.max(0, Math.min(1, fadeProgress));
 
-          // Переключаем активного игрока в самый последний момент
           if (timeLeft <= 0.15) {
             activePlayer = activePlayer === 'A' ? 'B' : 'A';
           }
