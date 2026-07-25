@@ -11,7 +11,7 @@
   <!-- Google Fonts: Urbanist -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
     * {
@@ -89,6 +89,50 @@
       opacity: 1;
     }
 
+    /* НОВОЕ: Стили плашки Buy Track поверх обложки */
+    .buy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(13, 13, 62, 0.65);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(226, 232, 240, 0.2);
+      border-radius: 20px;
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-decoration: none;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .buy-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .buy-btn:active {
+      transform: scale(0.95);
+      background: rgba(13, 13, 62, 0.85);
+    }
+
+    .buy-btn svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
     .player-bar {
       width: 100%;
       max-width: 360px;
@@ -134,7 +178,6 @@
       position: relative;
     }
 
-    /* Ускоренная бегущая строка (9s вместо 14s) */
     .track-marquee {
       font-family: 'Urbanist', sans-serif;
       display: inline-block;
@@ -189,6 +232,14 @@
 
   <main class="cover-container">
     <div class="cover-wrapper">
+      <!-- Плашка Buy Track -->
+      <a id="buyBtn" class="buy-btn" href="#" target="_blank" aria-label="Buy Track">
+        <span>Buy Track</span>
+        <svg viewBox="0 0 24 24">
+          <path d="M5 19L19 5M19 5H9M19 5V15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+
       <img id="coverA" class="cover-image" src="" alt="Album Cover A">
       <img id="coverB" class="cover-image" src="" alt="Album Cover B">
     </div>
@@ -209,9 +260,10 @@
   </footer>
 
   <script>
-    if (window.Telegram && window.Telegram.WebApp) {
-      window.Telegram.WebApp.ready();
-      window.Telegram.WebApp.expand();
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
     }
 
     const PLAYLIST_URL = 'playlist.json';
@@ -220,6 +272,7 @@
     let playlist = [];
     let totalPlaylistDuration = 0;
     let isPlaying = false;
+    let currentBuyUrl = '';
 
     let activePlayer = 'A';
     
@@ -233,6 +286,7 @@
     const trackTitle = document.getElementById('trackTitle');
     const coverA = document.getElementById('coverA');
     const coverB = document.getElementById('coverB');
+    const buyBtn = document.getElementById('buyBtn');
 
     const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
     const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5" ry="2.5"/>';
@@ -289,6 +343,7 @@
       }
 
       updateCover(live.currentTrack.cover);
+      updateBuyButton(live.currentTrack.buy_url);
 
       if (!shouldPlayAudio) return;
 
@@ -351,6 +406,29 @@
         console.error('Ошибка обложки:', coverUrl);
       };
     }
+
+    // Обновление и открытие ссылки Buy Track
+    function updateBuyButton(buyUrl) {
+      if (currentBuyUrl === buyUrl) return;
+      currentBuyUrl = buyUrl || '';
+
+      if (currentBuyUrl.trim() !== '') {
+        buyBtn.classList.add('visible');
+      } else {
+        buyBtn.classList.remove('visible');
+      }
+    }
+
+    buyBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!currentBuyUrl) return;
+
+      if (tg && tg.openLink) {
+        tg.openLink(currentBuyUrl);
+      } else {
+        window.open(currentBuyUrl, '_blank');
+      }
+    });
 
     playBtn.addEventListener('click', () => {
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
