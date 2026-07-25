@@ -333,28 +333,53 @@
     }
 
     function updateCover(coverUrl) {
+      if (!coverUrl) return;
+
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = activeImg === coverA ? coverB : coverA;
 
       if (activeImg.src === coverUrl) return;
 
-      nextImg.src = coverUrl || '';
-      nextImg.onload = () => {
+      nextImg.src = coverUrl;
+      
+      const handleLoad = () => {
         nextImg.classList.add('active');
         activeImg.classList.remove('active');
       };
+
+      if (nextImg.complete) {
+        handleLoad();
+      } else {
+        nextImg.onload = handleLoad;
+      }
     }
 
+    // ========== ПЕРЕКЛЮЧЕНИЕ PLAY / STOP ==========
     playBtn.addEventListener('click', () => {
       if (!isPlaying) {
         isPlaying = true;
         playIcon.innerHTML = STOP_ICON;
-        updateLiveState(true);
+        
+        const live = getLivePosition();
+        if (live.currentTrack) {
+          const primaryAudio = activePlayer === 'A' ? audioA : audioB;
+          primaryAudio.src = live.currentTrack.url;
+          primaryAudio.currentTime = live.trackTime;
+          primaryAudio.volume = 1;
+          
+          primaryAudio.play().then(() => {
+            updateLiveState(true);
+          }).catch(e => {
+            console.log('Error on play resume:', e);
+          });
+        }
       } else {
         isPlaying = false;
         playIcon.innerHTML = PLAY_ICON;
         audioA.pause();
         audioB.pause();
+        audioA.src = '';
+        audioB.src = '';
       }
     });
 
