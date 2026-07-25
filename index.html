@@ -1,269 +1,7 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Radio Mishor</title>
-  
-  <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  
-  <!-- Google Fonts: Urbanist -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800&display=swap" rel="stylesheet">
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-
-    body {
-      font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #0d0d3e;
-      color: #e2e8f0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      padding: 24px 20px 36px 20px;
-      overflow: hidden;
-    }
-
-    .header {
-      width: 100%;
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .logo {
-      font-family: 'Urbanist', sans-serif;
-      font-size: 36px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      line-height: 1;
-      color: #e2e8f0;
-      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-      text-transform: uppercase;
-    }
-
-    .cover-container {
-      width: 100%;
-      max-width: 330px;
-      aspect-ratio: 1 / 1;
-      position: relative;
-      border-radius: 12px;
-      background: #161652;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
-      padding: 4px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .cover-wrapper {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      overflow: hidden;
-      border-radius: 9px;
-    }
-
-    .cover-image {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      position: absolute;
-      top: 0;
-      left: 0;
-      opacity: 0;
-      transition: opacity 0.6s ease-in-out;
-    }
-
-    .cover-image.active {
-      opacity: 1;
-    }
-
-    /* НОВОЕ: Стили плашки Buy Track поверх обложки */
-    .buy-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 10;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: rgba(13, 13, 62, 0.65);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(226, 232, 240, 0.2);
-      border-radius: 20px;
-      color: #e2e8f0;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      text-decoration: none;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-4px);
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-
-    .buy-btn.visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .buy-btn:active {
-      transform: scale(0.95);
-      background: rgba(13, 13, 62, 0.85);
-    }
-
-    .buy-btn svg {
-      width: 12px;
-      height: 12px;
-      fill: currentColor;
-    }
-
-    .player-bar {
-      width: 100%;
-      max-width: 360px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 12px 8px 16px;
-    }
-
-    .live-indicator {
-      width: 12px;
-      height: 12px;
-      background-color: #e33452;
-      border-radius: 50%;
-      flex-shrink: 0;
-      box-shadow: 0 0 12px rgba(227, 52, 82, 0.8);
-      animation: pulse 1.8s infinite ease-in-out;
-    }
-
-    @keyframes pulse {
-      0% {
-        transform: scale(0.95);
-        opacity: 0.85;
-        box-shadow: 0 0 0 0 rgba(227, 52, 82, 0.8);
-      }
-      70% {
-        transform: scale(1.15);
-        opacity: 1;
-        box-shadow: 0 0 0 8px rgba(227, 52, 82, 0);
-      }
-      100% {
-        transform: scale(0.95);
-        opacity: 0.85;
-        box-shadow: 0 0 0 0 rgba(227, 52, 82, 0);
-      }
-    }
-
-    .track-info {
-      flex: 1;
-      overflow: hidden;
-      white-space: nowrap;
-      position: relative;
-    }
-
-    .track-marquee {
-      font-family: 'Urbanist', sans-serif;
-      display: inline-block;
-      font-size: 18px;
-      font-weight: 500;
-      letter-spacing: 0.2px;
-      color: #e2e8f0;
-      white-space: nowrap;
-      padding-left: 0%;
-      animation: marquee 9s linear infinite;
-    }
-
-    @keyframes marquee {
-      0% { transform: translateX(0%); }
-      100% { transform: translateX(-50%); }
-    }
-
-    .play-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: #f8fafc;
-      border: none;
-      outline: none;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .play-btn:active {
-      transform: scale(0.94);
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-    }
-
-    .play-btn svg {
-      width: 28px;
-      height: 28px;
-      fill: #0d0d3e;
-      transition: all 0.2s ease;
-    }
-  </style>
-</head>
-<body>
-
-  <header class="header">
-    <h1 class="logo">Radio Mishor</h1>
-  </header>
-
-  <main class="cover-container">
-    <div class="cover-wrapper">
-      <!-- Плашка Buy Track -->
-      <a id="buyBtn" class="buy-btn" href="#" target="_blank" aria-label="Buy Track">
-        <span>Buy Track</span>
-        <svg viewBox="0 0 24 24">
-          <path d="M5 19L19 5M19 5H9M19 5V15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-
-      <img id="coverA" class="cover-image" src="" alt="Album Cover A">
-      <img id="coverB" class="cover-image" src="" alt="Album Cover B">
-    </div>
-  </main>
-
-  <footer class="player-bar">
-    <div class="live-indicator" title="Live Stream"></div>
-    
-    <div class="track-info">
-      <div id="trackTitle" class="track-marquee">Подключение...</div>
-    </div>
-
-    <button id="playBtn" class="play-btn" aria-label="Play">
-      <svg id="playIcon" viewBox="0 0 24 24">
-        <path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>
-      </svg>
-    </button>
-  </footer>
-
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
+<script>
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
     }
 
     const PLAYLIST_URL = 'playlist.json';
@@ -272,7 +10,7 @@
     let playlist = [];
     let totalPlaylistDuration = 0;
     let isPlaying = false;
-    let currentBuyUrl = '';
+    let syncInterval = null;
 
     let activePlayer = 'A';
     
@@ -286,10 +24,9 @@
     const trackTitle = document.getElementById('trackTitle');
     const coverA = document.getElementById('coverA');
     const coverB = document.getElementById('coverB');
-    const buyBtn = document.getElementById('buyBtn');
 
-    const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
-    const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5" ry="2.5"/>';
+    const PLAY_ICON = '<path d="M8 5v14l11-7z"/>';
+    const STOP_ICON = '<path d="M6 6h12v12H6z"/>';
 
     async function loadPlaylist() {
       try {
@@ -298,15 +35,27 @@
         
         totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
         
-        updateLiveState(false);
-        
-        setInterval(() => {
-          updateLiveState(isPlaying);
+        // Сразу принудительно ставим обложку и инфо для первого трека
+        const live = getLivePosition();
+        if (live.currentTrack) {
+          const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
+          trackTitle.dataset.current = fullText;
+          trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+          
+          // Жесткая установка первой обложки
+          coverA.src = live.currentTrack.cover || '';
+          coverA.classList.add('active');
+        }
+
+        syncInterval = setInterval(() => {
+          if (isPlaying) {
+            updateLiveState(true);
+          }
         }, 1000);
 
       } catch (error) {
         console.error('Ошибка загрузки плейлиста:', error);
-        trackTitle.innerText = "Ошибка сети";
+        trackTitle.innerText = "Ошибка загрузки плейлиста";
       }
     }
 
@@ -340,10 +89,8 @@
       if (trackTitle.dataset.current !== fullText) {
         trackTitle.dataset.current = fullText;
         trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+        updateCover(live.currentTrack.cover);
       }
-
-      updateCover(live.currentTrack.cover);
-      updateBuyButton(live.currentTrack.buy_url);
 
       if (!shouldPlayAudio) return;
 
@@ -354,15 +101,17 @@
         primaryAudio.src = live.currentTrack.url;
         primaryAudio.currentTime = live.trackTime;
         primaryAudio.volume = 1;
-        primaryAudio.play().catch(e => console.log('Autoplay blocked'));
+        primaryAudio.play().catch(e => console.log('Autoplay constraint:', e));
 
         secondaryAudio.pause();
       } else {
-        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
+        // Мягкая синхронизация рассинхрона
+        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2.5) {
           primaryAudio.currentTime = live.trackTime;
         }
 
         const timeLeft = live.currentTrack.duration - live.trackTime;
+        
         if (timeLeft <= CROSSFADE_DURATION && timeLeft > 0) {
           const nextTrackIndex = (live.trackIndex + 1) % playlist.length;
           const nextTrack = playlist[nextTrackIndex];
@@ -371,7 +120,7 @@
             secondaryAudio.src = nextTrack.url;
             secondaryAudio.currentTime = 0;
             secondaryAudio.volume = 0;
-            secondaryAudio.play().catch(e => console.log('Crossfade preload blocked'));
+            secondaryAudio.play().catch(e => console.log('Crossfade play err:', e));
           }
 
           const fadeProgress = (CROSSFADE_DURATION - timeLeft) / CROSSFADE_DURATION;
@@ -389,63 +138,24 @@
 
     function updateCover(coverUrl) {
       if (!coverUrl) return;
-
+      
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = activeImg === coverA ? coverB : coverA;
 
-      if (activeImg.src === coverUrl || nextImg.src === coverUrl) return;
+      if (activeImg.src === coverUrl) return;
 
       nextImg.src = coverUrl;
-
       nextImg.onload = () => {
         nextImg.classList.add('active');
         activeImg.classList.remove('active');
       };
-
-      nextImg.onerror = () => {
-        console.error('Ошибка обложки:', coverUrl);
-      };
     }
-
-    // Обновление и открытие ссылки Buy Track
-    function updateBuyButton(buyUrl) {
-      if (currentBuyUrl === buyUrl) return;
-      currentBuyUrl = buyUrl || '';
-
-      if (currentBuyUrl.trim() !== '') {
-        buyBtn.classList.add('visible');
-      } else {
-        buyBtn.classList.remove('visible');
-      }
-    }
-
-    buyBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (!currentBuyUrl) return;
-
-      if (tg && tg.openLink) {
-        tg.openLink(currentBuyUrl);
-      } else {
-        window.open(currentBuyUrl, '_blank');
-      }
-    });
 
     playBtn.addEventListener('click', () => {
-      const primaryAudio = activePlayer === 'A' ? audioA : audioB;
-
       if (!isPlaying) {
         isPlaying = true;
         playIcon.innerHTML = STOP_ICON;
-        
-        const live = getLivePosition();
-        if (live.currentTrack) {
-          if (primaryAudio.src !== live.currentTrack.url) {
-            primaryAudio.src = live.currentTrack.url;
-          }
-          primaryAudio.currentTime = live.trackTime;
-          primaryAudio.volume = 1;
-          primaryAudio.play().catch(e => console.log('Play blocked'));
-        }
+        updateLiveState(true);
       } else {
         isPlaying = false;
         playIcon.innerHTML = PLAY_ICON;
@@ -456,5 +166,3 @@
 
     loadPlaylist();
   </script>
-</body>
-</html>
