@@ -273,7 +273,7 @@
     }
 
     const PLAYLIST_URL = 'playlist.json';
-    const CROSSFADE_DURATION = 5;
+    const CROSSFADE_DURATION = 5; // Кросс-фейд за 5 секунд до конца трека
 
     let playlist = [];
     let totalPlaylistDuration = 0;
@@ -304,9 +304,10 @@
         
         updateLiveState(false);
         
+        // Быстрый интервал (100 мс) для ультра-плавной регулировки громкости кросс-фейда
         setInterval(() => {
           updateLiveState(isPlaying);
-        }, 1000);
+        }, 100);
 
       } catch (error) {
         console.error('Ошибка загрузки плейлиста:', error);
@@ -317,7 +318,7 @@
     function getLivePosition() {
       if (totalPlaylistDuration === 0) return { trackIndex: 0, trackTime: 0, currentTrack: null };
 
-      const nowInSeconds = Math.floor(Date.now() / 1000);
+      const nowInSeconds = Date.now() / 1000;
       let currentCycleTime = nowInSeconds % totalPlaylistDuration;
 
       let accumulatedTime = 0;
@@ -354,6 +355,7 @@
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
       const secondaryAudio = activePlayer === 'A' ? audioB : audioA;
 
+      // Если основной плеер еще не играет нужный трек
       if (primaryAudio.src !== live.currentTrack.url) {
         primaryAudio.src = live.currentTrack.url;
         primaryAudio.currentTime = live.trackTime;
@@ -361,16 +363,21 @@
         primaryAudio.play().catch(e => console.log('Autoplay blocked'));
 
         secondaryAudio.pause();
+        secondaryAudio.volume = 0;
       } else {
+        // Мягкая корректировка рассинхрона
         if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
           primaryAudio.currentTime = live.trackTime;
         }
 
         const timeLeft = live.currentTrack.duration - live.trackTime;
+
+        // ЗОНА КРОСС-ФЕЙДА (последние 5 секунд трека)
         if (timeLeft <= CROSSFADE_DURATION && timeLeft > 0) {
           const nextTrackIndex = (live.trackIndex + 1) % playlist.length;
           const nextTrack = playlist[nextTrackIndex];
 
+          // Подготавливаем и запускаем второй плеер заранее
           if (secondaryAudio.src !== nextTrack.url) {
             secondaryAudio.src = nextTrack.url;
             secondaryAudio.currentTime = 0;
@@ -378,15 +385,19 @@
             secondaryAudio.play().catch(e => console.log('Crossfade preload blocked'));
           }
 
+          // Вычисляем прогресс затухания от 0 до 1
           const fadeProgress = (CROSSFADE_DURATION - timeLeft) / CROSSFADE_DURATION;
-          primaryAudio.volume = Math.max(0, 1 - fadeProgress);
-          secondaryAudio.volume = Math.min(1, fadeProgress);
+          
+          primaryAudio.volume = Math.max(0, Math.min(1, 1 - fadeProgress));
+          secondaryAudio.volume = Math.max(0, Math.min(1, fadeProgress));
 
-          if (timeLeft <= 0.5) {
+          // Переключаем активного игрока в самый последний момент
+          if (timeLeft <= 0.15) {
             activePlayer = activePlayer === 'A' ? 'B' : 'A';
           }
         } else {
           primaryAudio.volume = 1;
+          secondaryAudio.volume = 0;
         }
       }
     }
