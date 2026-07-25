@@ -247,7 +247,6 @@
 
   <footer class="player-bar">
     <div class="live-indicator" title="Live Stream"></div>
-    
     <div class="track-info">
       <div id="trackTitle" class="track-marquee">Подключение...</div>
     </div>
@@ -259,7 +258,7 @@
     </button>
   </footer>
 
-<script>
+  <script>
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
@@ -275,7 +274,6 @@
     let currentBuyUrl = '';
 
     let activePlayer = 'A';
-    
     const audioA = new Audio();
     const audioB = new Audio();
     audioA.crossOrigin = "anonymous";
@@ -295,25 +293,10 @@
       try {
         const response = await fetch(PLAYLIST_URL);
         playlist = await response.json();
-        
         totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
         
-        // 1. Первоначальная отрисовка UI
-        const live = getLivePosition();
-        if (live.currentTrack) {
-          const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
-          trackTitle.dataset.current = fullText;
-          trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
-          
-          // Жесткая установка первой обложки сразу
-          if (live.currentTrack.cover) {
-            coverA.src = live.currentTrack.cover;
-            coverA.classList.add('active');
-          }
-          updateBuyButton(live.currentTrack.buy_url);
-        }
-
-        // 2. Периодический таймер синхронизации
+        updateLiveState(false);
+        
         setInterval(() => {
           updateLiveState(isPlaying);
         }, 1000);
@@ -353,10 +336,11 @@
       const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
       if (trackTitle.dataset.current !== fullText) {
         trackTitle.dataset.current = fullText;
-        trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
-        updateCover(live.currentTrack.cover);
-        updateBuyButton(live.currentTrack.buy_url);
+        trackTitle.innerText = `${fullText} • ${fullText} • `;
       }
+
+      updateCover(live.currentTrack.cover);
+      updateBuyButton(live.currentTrack.buy_url);
 
       if (!shouldPlayAudio) return;
 
@@ -371,8 +355,7 @@
 
         secondaryAudio.pause();
       } else {
-        // Мягкая синхронизация (если аудио ушло в сторону)
-        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2.5) {
+        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
           primaryAudio.currentTime = live.trackTime;
         }
 
@@ -407,7 +390,7 @@
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = activeImg === coverA ? coverB : coverA;
 
-      if (activeImg.src === coverUrl) return;
+      if (activeImg.src === coverUrl || nextImg.src === coverUrl) return;
 
       nextImg.src = coverUrl;
 
@@ -415,8 +398,13 @@
         nextImg.classList.add('active');
         activeImg.classList.remove('active');
       };
+
+      nextImg.onerror = () => {
+        console.error('Ошибка обложки:', coverUrl);
+      };
     }
 
+    // Обновление и открытие ссылки Buy Track
     function updateBuyButton(buyUrl) {
       if (currentBuyUrl === buyUrl) return;
       currentBuyUrl = buyUrl || '';
@@ -445,7 +433,6 @@
       if (!isPlaying) {
         isPlaying = true;
         playIcon.innerHTML = STOP_ICON;
-        
         const live = getLivePosition();
         if (live.currentTrack) {
           if (primaryAudio.src !== live.currentTrack.url) {
