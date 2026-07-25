@@ -4,34 +4,39 @@
     "title": "Muzika",
     "duration": 210,
     "url": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/DubRiders%20-%20Muzika.mp3",
-    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg"
+    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg",
+    "buy_url": "https://insectorama.bandcamp.com/track/muzika"
   },
   {
     "artist": "773b",
     "title": "Nighttime, Distant Lights",
     "duration": 339,
     "url": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/773b%20-%20Nighttime%2C%20Distant%20Lights.mp3",
-    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg"
+    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg",
+    "buy_url": "https://insectorama.bandcamp.com/track/nighttime-distant-lights"
   },
   {
     "artist": "A Mag",
     "title": "Unknown Boundaries",
     "duration": 739,
     "url": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/A%20Mag%20-%20Unknown%20Boundaries%20(Digital%20Only).mp3",
-    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover1.jpg"
+    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover1.jpg",
+    "buy_url": "https://insectorama.bandcamp.com/track/unknown-boundaries-digital-only"
   },
   {
     "artist": "bassador",
     "title": "Inner Tunnel Dub",
     "duration": 486,
     "url": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/bassador%20-%20Inner%20Tunnel%20Dub.mp3",
-    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg"
+    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg",
+    "buy_url": "https://insectorama.bandcamp.com/track/inner-tunnel-dub"
   },
   {
     "artist": "Ecodust",
     "title": "Rainforest",
     "duration": 286,
     "url": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/Ekodust%20-%20Rainforest.mp3",
-    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg"
+    "cover": "https://pub-5f5042d413ee41fdb62496912462f011.r2.dev/cover.jpg",
+    "buy_url": "https://insectorama.bandcamp.com/track/rainforest"
   }
 ]
