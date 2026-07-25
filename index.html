@@ -24,8 +24,10 @@
 
     body {
       font-family: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #f7f4ee;
-      color: #1a1a1a;
+      /* НОВОЕ: Голубой фон 'Летнее небо' */
+      background-color: #6baed6;
+      /* НОВОЕ: Основной текст теперь белый */
+      color: #ffffff;
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -41,26 +43,28 @@
       margin-top: 10px;
     }
 
-    /* Логотип с шрифтом Barriecito */
+    /* Логотип: Белый с легкой тенью */
     .logo {
       font-family: 'Barriecito', cursive;
       font-size: 42px;
       font-weight: 400;
       letter-spacing: 1px;
-      color: #000000;
       line-height: 1;
+      /* НОВОЕ */
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
-    /* Тонкая и изящная рамка обложки */
     .cover-container {
       width: 100%;
       max-width: 330px;
       aspect-ratio: 1 / 1;
       position: relative;
       border-radius: 12px;
-      background: #e8e2d7;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.03);
-      padding: 4px; /* Утонченная рамка */
+      /* Тонкая рамка в цвет фона, но светлее */
+      background: #89c4e8;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+      padding: 4px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -99,13 +103,15 @@
       padding: 8px 12px 8px 16px;
     }
 
+    /* Пульсирующий индикатор: Теперь тоже белый */
     .live-indicator {
       width: 12px;
       height: 12px;
-      background-color: #ff2a2a;
+      /* НОВОЕ */
+      background-color: #ffffff;
       border-radius: 50%;
       flex-shrink: 0;
-      box-shadow: 0 0 10px rgba(255, 42, 42, 0.6);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
       animation: pulse 1.8s infinite ease-in-out;
     }
 
@@ -113,17 +119,17 @@
       0% {
         transform: scale(0.95);
         opacity: 0.8;
-        box-shadow: 0 0 0 0 rgba(255, 42, 42, 0.7);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
       }
       70% {
         transform: scale(1.15);
         opacity: 1;
-        box-shadow: 0 0 0 8px rgba(255, 42, 42, 0);
+        box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
       }
       100% {
         transform: scale(0.95);
         opacity: 0.8;
-        box-shadow: 0 0 0 0 rgba(255, 42, 42, 0);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
       }
     }
 
@@ -134,11 +140,13 @@
       position: relative;
     }
 
+    /* Бегущая строка: Белая */
     .track-marquee {
       display: inline-block;
       font-size: 17px;
       font-weight: 500;
-      color: #1a1a1a;
+      /* НОВОЕ */
+      color: #ffffff;
       white-space: nowrap;
       padding-left: 0%;
       animation: marquee 14s linear infinite;
@@ -170,11 +178,11 @@
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
     }
 
-    /* Увеличенные иконки */
     .play-btn svg {
       width: 28px;
       height: 28px;
-      fill: #000000;
+      /* Иконка внутри кнопки остается темной для контраста */
+      fill: #333333;
       transition: all 0.2s ease;
     }
   </style>
@@ -196,11 +204,10 @@
     <div class="live-indicator" title="Live Stream"></div>
     
     <div class="track-info">
-      <div id="trackTitle" class="track-marquee">Подключение к эфиру...</div>
+      <div id="trackTitle" class="track-marquee">Подключение...</div>
     </div>
 
     <button id="playBtn" class="play-btn" aria-label="Play">
-      <!-- Увеличенный Play со скругленными углами -->
       <svg id="playIcon" viewBox="0 0 24 24">
         <path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>
       </svg>
@@ -233,7 +240,6 @@
     const coverA = document.getElementById('coverA');
     const coverB = document.getElementById('coverB');
 
-    // Крупные иконки с мягкими углами
     const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
     const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5" ry="2.5"/>';
 
@@ -252,7 +258,7 @@
 
       } catch (error) {
         console.error('Ошибка загрузки плейлиста:', error);
-        trackTitle.innerText = "Ошибка загрузки плейлиста";
+        trackTitle.innerText = "Ошибка сети";
       }
     }
 
@@ -299,7 +305,7 @@
         primaryAudio.src = live.currentTrack.url;
         primaryAudio.currentTime = live.trackTime;
         primaryAudio.volume = 1;
-        primaryAudio.play().catch(e => console.log('Playback start error:', e));
+        primaryAudio.play().catch(e => console.log('Autoplay blocked'));
 
         secondaryAudio.pause();
       } else {
@@ -316,7 +322,7 @@
             secondaryAudio.src = nextTrack.url;
             secondaryAudio.currentTime = 0;
             secondaryAudio.volume = 0;
-            secondaryAudio.play().catch(e => console.log('Crossfade start error:', e));
+            secondaryAudio.play().catch(e => console.log('Crossfade preload blocked'));
           }
 
           const fadeProgress = (CROSSFADE_DURATION - timeLeft) / CROSSFADE_DURATION;
@@ -348,7 +354,7 @@
       };
 
       nextImg.onerror = () => {
-        console.error('Ошибка загрузки обложки:', coverUrl);
+        console.error('Ошибка обложки:', coverUrl);
       };
     }
 
@@ -366,7 +372,7 @@
           }
           primaryAudio.currentTime = live.trackTime;
           primaryAudio.volume = 1;
-          primaryAudio.play().catch(e => console.log('Play click error:', e));
+          primaryAudio.play().catch(e => console.log('Play blocked'));
         }
       } else {
         isPlaying = false;
