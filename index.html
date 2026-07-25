@@ -259,7 +259,7 @@
     </button>
   </footer>
 
-  <script>
+<script>
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
@@ -298,8 +298,22 @@
         
         totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
         
-        updateLiveState(false);
-        
+        // 1. Первоначальная отрисовка UI
+        const live = getLivePosition();
+        if (live.currentTrack) {
+          const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
+          trackTitle.dataset.current = fullText;
+          trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+          
+          // Жесткая установка первой обложки сразу
+          if (live.currentTrack.cover) {
+            coverA.src = live.currentTrack.cover;
+            coverA.classList.add('active');
+          }
+          updateBuyButton(live.currentTrack.buy_url);
+        }
+
+        // 2. Периодический таймер синхронизации
         setInterval(() => {
           updateLiveState(isPlaying);
         }, 1000);
@@ -340,10 +354,9 @@
       if (trackTitle.dataset.current !== fullText) {
         trackTitle.dataset.current = fullText;
         trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+        updateCover(live.currentTrack.cover);
+        updateBuyButton(live.currentTrack.buy_url);
       }
-
-      updateCover(live.currentTrack.cover);
-      updateBuyButton(live.currentTrack.buy_url);
 
       if (!shouldPlayAudio) return;
 
@@ -358,7 +371,8 @@
 
         secondaryAudio.pause();
       } else {
-        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
+        // Мягкая синхронизация (если аудио ушло в сторону)
+        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2.5) {
           primaryAudio.currentTime = live.trackTime;
         }
 
@@ -393,7 +407,7 @@
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = activeImg === coverA ? coverB : coverA;
 
-      if (activeImg.src === coverUrl || nextImg.src === coverUrl) return;
+      if (activeImg.src === coverUrl) return;
 
       nextImg.src = coverUrl;
 
@@ -401,13 +415,8 @@
         nextImg.classList.add('active');
         activeImg.classList.remove('active');
       };
-
-      nextImg.onerror = () => {
-        console.error('Ошибка обложки:', coverUrl);
-      };
     }
 
-    // Обновление и открытие ссылки Buy Track
     function updateBuyButton(buyUrl) {
       if (currentBuyUrl === buyUrl) return;
       currentBuyUrl = buyUrl || '';
