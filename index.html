@@ -50,7 +50,7 @@
       line-height: 1;
       color: #e2e8f0;
       text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-      text-transform: uppercase; /* Вернули верхний регистр */
+      text-transform: uppercase;
     }
 
     .cover-container {
@@ -172,7 +172,6 @@
       }
     }
 
-    /* Оптимизированный контейнер текста */
     .track-info {
       flex: 1;
       overflow: hidden;
@@ -182,7 +181,6 @@
       -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
     }
 
-    /* Идеально плавная бегущая строка */
     .track-marquee {
       font-family: 'Urbanist', sans-serif;
       display: inline-block;
@@ -308,8 +306,20 @@
         playlist = await response.json();
         totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
         
-        updateLiveState(false);
-        
+        // Мгновенно отрисовываем первую обложку при загрузке приложения
+        const live = getLivePosition();
+        if (live.currentTrack) {
+          const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
+          currentTrackText = fullText;
+          trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+          
+          if (live.currentTrack.cover) {
+            coverA.src = live.currentTrack.cover;
+            coverA.classList.add('active');
+          }
+          updateBuyButton(live.currentTrack.buy_url);
+        }
+
         setInterval(() => {
           updateLiveState(isPlaying);
         }, 100);
