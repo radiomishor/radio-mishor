@@ -205,7 +205,7 @@
     </button>
   </footer>
 
-  <script>
+<script>
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
@@ -242,8 +242,18 @@
         
         totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
         
-        updateLiveState(false);
-        
+        // Сразу принудительно ставим обложку и инфо для первого трека
+        const live = getLivePosition();
+        if (live.currentTrack) {
+          const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
+          trackTitle.dataset.current = fullText;
+          trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+          
+          // Жесткая установка первой обложки
+          coverA.src = live.currentTrack.cover || '';
+          coverA.classList.add('active');
+        }
+
         syncInterval = setInterval(() => {
           if (isPlaying) {
             updateLiveState(true);
@@ -302,7 +312,8 @@
 
         secondaryAudio.pause();
       } else {
-        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
+        // Мягкая синхронизация рассинхрона
+        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2.5) {
           primaryAudio.currentTime = live.trackTime;
         }
 
@@ -333,12 +344,14 @@
     }
 
     function updateCover(coverUrl) {
+      if (!coverUrl) return;
+      
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = activeImg === coverA ? coverB : coverA;
 
       if (activeImg.src === coverUrl) return;
 
-      nextImg.src = coverUrl || '';
+      nextImg.src = coverUrl;
       nextImg.onload = () => {
         nextImg.classList.add('active');
         activeImg.classList.remove('active');
