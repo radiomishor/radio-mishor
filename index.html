@@ -33,6 +33,7 @@
       align-items: center;
       padding: 24px 20px 36px 20px;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
     .header {
@@ -178,6 +179,7 @@
       position: relative;
     }
 
+    /* Плавная бегущая строка с ускорением GPU */
     .track-marquee {
       font-family: 'Urbanist', sans-serif;
       display: inline-block;
@@ -187,12 +189,17 @@
       color: #e2e8f0;
       white-space: nowrap;
       padding-left: 0%;
-      animation: marquee 6s linear infinite; /* Ускорили анимацию */
+      will-change: transform;
+      animation: marquee 8s linear infinite;
     }
 
     @keyframes marquee {
-      0% { transform: translateX(0%); }
-      100% { transform: translateX(-50%); }
+      0% { 
+        transform: translate3d(0%, 0, 0); 
+      }
+      100% { 
+        transform: translate3d(-50%, 0, 0); 
+      }
     }
 
     .play-btn {
@@ -404,7 +411,6 @@
       };
     }
 
-    // Обновление и открытие ссылки Buy Track
     function updateBuyButton(buyUrl) {
       if (currentBuyUrl === buyUrl) return;
       currentBuyUrl = buyUrl || '';
