@@ -302,11 +302,18 @@
 
     async function loadPlaylist() {
       try {
-        const response = await fetch(PLAYLIST_URL);
-        playlist = await response.json();
-        totalPlaylistDuration = playlist.reduce((sum, track) => sum + track.duration, 0);
+        // Добавляем timestamp к URL против жесткого кэширования Telegram
+        const response = await fetch(`${PLAYLIST_URL}?v=${Date.now()}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
-        // Мгновенно отрисовываем первую обложку при загрузке приложения
+        playlist = await response.json();
+        totalPlaylistDuration = playlist.reduce((sum, track) => sum + (Number(track.duration) || 0), 0);
+        
+        if (totalPlaylistDuration === 0) {
+          trackTitle.innerText = "Плейлист пуст";
+          return;
+        }
+
         const live = getLivePosition();
         if (live.currentTrack) {
           const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
@@ -314,15 +321,14 @@
           trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
           
           if (live.currentTrack.cover) {
-            coverA.src = live.currentTrack.cover;
-            coverA.classList.add('active');
+            updateCover(live.currentTrack.cover, true); // Напрямую активируем первое изображение
           }
           updateBuyButton(live.currentTrack.buy_url);
         }
 
         setInterval(() => {
           updateLiveState(isPlaying);
-        }, 100);
+        }, 150);
 
       } catch (error) {
         console.error('Ошибка загрузки плейлиста:', error);
@@ -331,7 +337,9 @@
     }
 
     function getLivePosition() {
-      if (totalPlaylistDuration === 0) return { trackIndex: 0, trackTime: 0, currentTrack: null };
+      if (totalPlaylistDuration === 0 || playlist.length === 0) {
+        return { trackIndex: 0, trackTime: 0, currentTrack: null };
+      }
 
       const nowInSeconds = Date.now() / 1000;
       let currentCycleTime = nowInSeconds % totalPlaylistDuration;
@@ -339,14 +347,15 @@
       let accumulatedTime = 0;
       for (let i = 0; i < playlist.length; i++) {
         const track = playlist[i];
-        if (currentCycleTime < accumulatedTime + track.duration) {
+        const duration = Number(track.duration) || 0;
+        if (currentCycleTime < accumulatedTime + duration) {
           return {
             trackIndex: i,
             trackTime: currentCycleTime - accumulatedTime,
             currentTrack: track
           };
         }
-        accumulatedTime += track.duration;
+        accumulatedTime += duration;
       }
 
       return { trackIndex: 0, trackTime: 0, currentTrack: playlist[0] };
@@ -370,6 +379,11 @@
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
       const secondaryAudio = activePlayer === 'A' ? audioB : audioA;
 
+      // Защита от остановки: если статус isPlaying = true, но плеер застрял
+      if (primaryAudio.paused && shouldPlayAudio && primaryAudio.readyState >= 2) {
+        primaryAudio.play().catch(e => console.log('Stalled play resume failed'));
+      }
+
       if (primaryAudio.src !== live.currentTrack.url) {
         primaryAudio.src = live.currentTrack.url;
         primaryAudio.currentTime = live.trackTime;
@@ -379,7 +393,7 @@
         secondaryAudio.pause();
         secondaryAudio.volume = 0;
       } else {
-        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2) {
+        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2.5) {
           primaryAudio.currentTime = live.trackTime;
         }
 
@@ -411,23 +425,25 @@
       }
     }
 
-    function updateCover(coverUrl) {
+    function updateCover(coverUrl, isInitial = false) {
       if (!coverUrl) return;
 
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
-      const nextImg = activeImg === coverA ? coverB : coverA;
+      const nextImg = isInitial ? coverA : (activeImg === coverA ? coverB : coverA);
 
-      if (activeImg.src === coverUrl || nextImg.src === coverUrl) return;
+      if (!isInitial && (activeImg.src === coverUrl || nextImg.src === coverUrl)) return;
 
-      nextImg.src = coverUrl;
-
-      nextImg.onload = () => {
+      const tempImg = new Image();
+      tempImg.src = coverUrl;
+      tempImg.onload = () => {
+        nextImg.src = coverUrl;
         nextImg.classList.add('active');
-        activeImg.classList.remove('active');
+        if (!isInitial && nextImg !== activeImg) {
+          activeImg.classList.remove('active');
+        }
       };
-
-      nextImg.onerror = () => {
-        console.error('Ошибка обложки:', coverUrl);
+      tempImg.onerror = () => {
+        console.error('Ошибка загрузки обложки:', coverUrl);
       };
     }
 
