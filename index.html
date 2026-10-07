@@ -34,6 +34,22 @@
       padding: 24px 20px 36px 20px;
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* Динамический размытый фон */
+    .bg-blur {
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 120%;
+      height: 120%;
+      background-size: cover;
+      background-position: center;
+      filter: blur(45px) brightness(0.35);
+      z-index: -1;
+      transition: background-image 0.8s ease-in-out;
+      pointer-events: none;
     }
 
     .header {
@@ -59,8 +75,8 @@
       aspect-ratio: 1 / 1;
       position: relative;
       border-radius: 12px;
-      background: #161652;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+      background: rgba(22, 22, 82, 0.5); /* Немного прозрачности для слияния с фоном */
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
       padding: 4px;
       display: flex;
       justify-content: center;
@@ -90,11 +106,9 @@
       opacity: 1;
     }
 
-    /* Стили плашки Buy Track */
-    .buy-btn {
+    /* Базовый стиль для кнопок-плашек поверх обложки */
+    .cover-btn {
       position: absolute;
-      top: 12px;
-      right: 12px;
       z-index: 10;
       display: inline-flex;
       align-items: center;
@@ -112,23 +126,37 @@
       text-decoration: none;
       opacity: 0;
       pointer-events: none;
-      transform: translateY(-4px);
       transition: all 0.3s ease;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
     }
 
-    .buy-btn.visible {
+    /* Buy Track — Верхний правый угол */
+    .buy-btn {
+      top: 12px;
+      right: 12px;
+      transform: translateY(-4px);
+    }
+
+    /* Share Track — Нижний левый угол */
+    .share-btn {
+      bottom: 12px;
+      left: 12px;
+      transform: translateY(4px);
+    }
+
+    .cover-btn.visible {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
     }
 
-    .buy-btn:active {
+    .cover-btn:active {
       transform: scale(0.95);
       background: rgba(13, 13, 62, 0.85);
     }
 
-    .buy-btn svg {
+    .cover-btn svg {
       width: 12px;
       height: 12px;
       fill: currentColor;
@@ -194,7 +222,7 @@
       -webkit-backface-visibility: hidden;
       perspective: 1000px;
       will-change: transform;
-      animation: marquee 10s linear infinite;
+      animation: marquee 8s linear infinite;
     }
 
     @keyframes marquee {
@@ -237,18 +265,30 @@
 </head>
 <body>
 
+  <!-- Динамический размытый фон -->
+  <div id="bgBlur" class="bg-blur"></div>
+
   <header class="header">
     <h1 class="logo">Radio Mishor</h1>
   </header>
 
   <main class="cover-container">
     <div class="cover-wrapper">
-      <a id="buyBtn" class="buy-btn" href="#" target="_blank" aria-label="Buy Track">
+      <!-- Плашка Buy Track (Верхний правый угол) -->
+      <a id="buyBtn" class="cover-btn buy-btn" href="#" target="_blank" aria-label="Buy Track">
         <span>Buy Track</span>
         <svg viewBox="0 0 24 24">
           <path d="M5 19L19 5M19 5H9M19 5V15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
+
+      <!-- Плашка Share Track (Нижний левый угол) -->
+      <button id="shareBtn" class="cover-btn share-btn visible" aria-label="Share Track">
+        <span>Share</span>
+        <svg viewBox="0 0 24 24">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
 
       <img id="coverA" class="cover-image" src="" alt="Album Cover A">
       <img id="coverB" class="cover-image" src="" alt="Album Cover B">
@@ -275,6 +315,13 @@
       tg.expand();
     }
 
+    // Функция тактильного отклика (Haptic Feedback)
+    function triggerHaptic() {
+      if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred('light');
+      }
+    }
+
     const PLAYLIST_URL = 'playlist.json';
     const CROSSFADE_DURATION = 5;
 
@@ -295,14 +342,15 @@
     const trackTitle = document.getElementById('trackTitle');
     const coverA = document.getElementById('coverA');
     const coverB = document.getElementById('coverB');
+    const bgBlur = document.getElementById('bgBlur');
     const buyBtn = document.getElementById('buyBtn');
+    const shareBtn = document.getElementById('shareBtn');
 
     const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
     const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5" ry="2.5"/>';
 
     async function loadPlaylist() {
       try {
-        // Добавляем timestamp к URL против жесткого кэширования Telegram
         const response = await fetch(`${PLAYLIST_URL}?v=${Date.now()}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
@@ -316,14 +364,10 @@
 
         const live = getLivePosition();
         if (live.currentTrack) {
-          const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
-          currentTrackText = fullText;
-          trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
-          
+          updateTrackDisplay(live.currentTrack);
           if (live.currentTrack.cover) {
-            updateCover(live.currentTrack.cover, true); // Напрямую активируем первое изображение
+            updateCover(live.currentTrack.cover, true);
           }
-          updateBuyButton(live.currentTrack.buy_url);
         }
 
         setInterval(() => {
@@ -361,25 +405,52 @@
       return { trackIndex: 0, trackTime: 0, currentTrack: playlist[0] };
     }
 
+    function updateTrackDisplay(track) {
+      const fullText = `${track.artist} — ${track.title}`;
+      if (currentTrackText !== fullText) {
+        currentTrackText = fullText;
+        trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
+        updateCover(track.cover);
+        updateBuyButton(track.buy_url);
+        updateMediaSession(track); 
+      }
+    }
+
+    // Media Session API для шторки уведомлений и экрана блокировки
+    function updateMediaSession(track) {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          album: 'Radio Mishor Live',
+          artwork: [
+            { src: track.cover || '', sizes: '512x512', type: 'image/jpeg' }
+          ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          if (!isPlaying) playBtn.click();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          if (isPlaying) playBtn.click();
+        });
+        navigator.mediaSession.setActionHandler('stop', () => {
+          if (isPlaying) playBtn.click();
+        });
+      }
+    }
+
     function updateLiveState(shouldPlayAudio = true) {
       const live = getLivePosition();
       if (!live.currentTrack) return;
 
-      const fullText = `${live.currentTrack.artist} — ${live.currentTrack.title}`;
-      
-      if (currentTrackText !== fullText) {
-        currentTrackText = fullText;
-        trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
-        updateCover(live.currentTrack.cover);
-        updateBuyButton(live.currentTrack.buy_url);
-      }
+      updateTrackDisplay(live.currentTrack);
 
       if (!shouldPlayAudio) return;
 
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
       const secondaryAudio = activePlayer === 'A' ? audioB : audioA;
 
-      // Защита от остановки: если статус isPlaying = true, но плеер застрял
       if (primaryAudio.paused && shouldPlayAudio && primaryAudio.readyState >= 2) {
         primaryAudio.play().catch(e => console.log('Stalled play resume failed'));
       }
@@ -428,6 +499,9 @@
     function updateCover(coverUrl, isInitial = false) {
       if (!coverUrl) return;
 
+      // Обновляем размытый фон
+      bgBlur.style.backgroundImage = `url(${coverUrl})`;
+
       const activeImg = coverA.classList.contains('active') ? coverA : coverB;
       const nextImg = isInitial ? coverA : (activeImg === coverA ? coverB : coverA);
 
@@ -458,8 +532,10 @@
       }
     }
 
+    // Обработчик Buy Track (Вибрация + открытие)
     buyBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      triggerHaptic();
       if (!currentBuyUrl) return;
 
       if (tg && tg.openLink) {
@@ -469,7 +545,26 @@
       }
     });
 
+    // Обработчик Share Track (Вибрация + শেринг)
+    shareBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerHaptic();
+
+      // Укажите прямую ссылку на вашего бота, если она есть, вместо placeholder_bot
+      const botUrl = 'https://t.me/RadioMishorBot'; 
+      const shareText = `Слушаю сейчас на Radio Mishor: ${currentTrackText.replace(/ • /g, '').trim()}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`;
+
+      if (tg && tg.openTelegramLink) {
+        tg.openTelegramLink(shareUrl);
+      } else {
+        window.open(shareUrl, '_blank');
+      }
+    });
+
+    // Обработчик Play/Stop (Вибрация + управление)
     playBtn.addEventListener('click', () => {
+      triggerHaptic();
       const primaryAudio = activePlayer === 'A' ? audioA : audioB;
 
       if (!isPlaying) {
