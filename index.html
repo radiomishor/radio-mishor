@@ -2,8 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- Блокируем принудительную инверсию цветов от Telegram -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <title>Radio Mishor</title>
   
@@ -29,6 +28,7 @@
       background-color: #050505;
       color: #ffffff;
       height: 100vh;
+      height: 100svh; /* Защита вёрстки при повороте экрана */
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -39,7 +39,6 @@
       position: relative;
     }
 
-    /* Аппаратное ускорение для фона, чтобы не крашился рендер на слабых смартфонах */
     .bg-blur {
       position: absolute;
       top: -10%;
@@ -48,11 +47,11 @@
       height: 120%;
       background-size: cover;
       background-position: center;
-      filter: blur(45px) brightness(0.35);
+      filter: blur(50px) brightness(0.35);
       z-index: -1;
       transition: background-image 0.8s ease-in-out;
       pointer-events: none;
-      transform: translateZ(0); 
+      transform: translateZ(0);
       will-change: transform;
     }
 
@@ -73,14 +72,13 @@
       text-transform: uppercase;
     }
 
-    /* Тёмный фон-заглушка и мощная тень для обложки */
     .cover-container {
       width: 100%;
-      max-width: 330px;
+      max-width: 300px;
       aspect-ratio: 1 / 1;
       position: relative;
       border-radius: 12px;
-      background: #0a0a0a; 
+      background: #0a0a0a;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.6);
       display: flex;
       justify-content: center;
@@ -161,7 +159,6 @@
     .cover-btn svg {
       width: 15px;
       height: 15px;
-      fill: currentColor;
       flex-shrink: 0;
     }
 
@@ -233,7 +230,6 @@
       100% { transform: translate3d(-50%, 0, 0); }
     }
 
-    /* Защита от перекрашивания Telegram Dark Mode (!important) */
     .play-btn {
       width: 64px;
       height: 64px;
@@ -282,9 +278,10 @@
 
       <button id="shareBtn" class="cover-btn share-btn visible" aria-label="Share Track">
         <span>Share</span>
-        <!-- Чистая залитая иконка Telegram без артефактов -->
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        <!-- Оригинальный логотип Telegram (круг с самолетиком) -->
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" fill="#229ED9"/>
+          <path d="M17.5 7.5L5.5 12.25L9.5 14.5L15.5 9.5L10.5 14L14.5 17.5L17.5 7.5Z" fill="#ffffff"/>
         </svg>
       </button>
 
@@ -313,7 +310,6 @@
       tg.expand();
     }
 
-    // Двойной механизм вибрации для максимальной надежности
     function triggerHaptic() {
       try {
         if (tg && tg.HapticFeedback) {
@@ -421,7 +417,6 @@
       }
     }
 
-    // Завернуто в try/catch, чтобы системные блокировки шторки не ломали приложение
     function updateMediaSession(track) {
       try {
         if ('mediaSession' in navigator) {
@@ -489,8 +484,11 @@
           primaryAudio.volume = Math.max(0, Math.min(1, 1 - fadeProgress));
           secondaryAudio.volume = Math.max(0, Math.min(1, fadeProgress));
 
-          if (timeLeft <= 0.15) {
+          // Жесткое переключение плеера в конце кросс-фейда с гарантией старта
+          if (timeLeft <= 0.15 && activePlayer !== (activePlayer === 'A' ? 'B' : 'A')) {
             activePlayer = activePlayer === 'A' ? 'B' : 'A';
+            primaryAudio.pause();
+            secondaryAudio.play().catch(e => console.log('Crossfade handoff failed'));
           }
         } else {
           primaryAudio.volume = 1;
@@ -550,9 +548,11 @@
       e.preventDefault();
       triggerHaptic();
 
-      // Замените на реальную ссылку вашего бота
-      const botUrl = 'https://t.me/RadioMishorBot'; 
-      const shareText = `Слушаю сейчас на Radio Mishor: ${currentTrackText}\n${botUrl}`;
+      // Используем переменную botUsername для гибкой настройки
+      const botUsername = 'RadioMishorBot'; 
+      const botUrl = `https://t.me/${botUsername}`; 
+      const cleanTrackText = currentTrackText.replace(/ • /g, '').trim();
+      const shareText = `Слушаю сейчас на Radio Mishor: ${cleanTrackText}\n${botUrl}`;
       const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(shareText)}`;
 
       if (tg && tg.openTelegramLink) {
