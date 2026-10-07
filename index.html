@@ -29,7 +29,7 @@
       background-color: #050505;
       color: #ffffff;
       overflow-x: hidden;
-      overflow-y: auto; /* Разрешаем скролл в горизонтальном режиме */
+      overflow-y: auto;
     }
 
     body {
@@ -38,14 +38,13 @@
       min-height: 100svh;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: center; /* Центрируем всю группу элементов по вертикали */
       align-items: center;
-      padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 24px) env(safe-area-inset-left, 16px);
+      padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 32px) 20px;
       -webkit-font-smoothing: antialiased;
       position: relative;
     }
 
-    /* Адаптированный размытый фон */
     .bg-blur {
       position: fixed;
       top: 0;
@@ -64,13 +63,13 @@
     .header {
       width: 100%;
       text-align: center;
-      margin-top: 6px;
-      margin-bottom: 12px;
+      margin-top: 10px;
+      margin-bottom: 24px; /* Опускаем логотип немного ниже */
     }
 
     .logo {
       font-family: 'Urbanist', sans-serif;
-      font-size: 32px;
+      font-size: 34px;
       font-weight: 800;
       letter-spacing: -0.3px;
       line-height: 1;
@@ -81,7 +80,7 @@
 
     .cover-container {
       width: 100%;
-      max-width: 300px;
+      max-width: 310px;
       aspect-ratio: 1 / 1;
       position: relative;
       border-radius: 12px;
@@ -90,7 +89,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin: 10px 0;
+      margin: 0 auto;
     }
 
     .cover-wrapper {
@@ -178,7 +177,7 @@
       justify-content: space-between;
       gap: 12px;
       padding: 8px 12px 8px 16px;
-      margin-top: 10px;
+      margin-top: 28px; /* Подтягиваем плеер ближе к обложке */
     }
 
     .live-indicator {
@@ -266,7 +265,7 @@
       transition: all 0.2s ease;
     }
 
-    /* СТИЛИ ДЛЯ ЛАНДШАФТНОГО (ГОРИЗОНТАЛЬНОГО) РЕЖИМА */
+    /* Адаптированный компактный вид для горизонатльной ориентации */
     @media screen and (orientation: landscape) and (max-height: 500px) {
       body {
         justify-content: flex-start;
@@ -274,17 +273,20 @@
         padding-bottom: 20px;
       }
 
+      .header {
+        margin-bottom: 12px;
+      }
+
       .logo {
         font-size: 26px;
       }
 
       .cover-container {
-        max-width: 180px;
-        margin: 6px 0;
+        max-width: 170px;
       }
 
       .player-bar {
-        margin-top: 4px;
+        margin-top: 12px;
       }
 
       .play-btn {
@@ -347,12 +349,10 @@
     if (tg) {
       tg.ready();
       tg.expand();
-      // Растягиваем интерфейс на весь экран Telegram
       if (tg.setHeaderColor) tg.setHeaderColor('#050505');
       if (tg.setBackgroundColor) tg.setBackgroundColor('#050505');
     }
 
-    // Гарантированный виброотклик
     function triggerHaptic() {
       try {
         if (tg && tg.HapticFeedback) {
@@ -361,7 +361,7 @@
           navigator.vibrate(40);
         }
       } catch (e) {
-        console.log('Haptic notification fallback');
+        console.log('Haptic fallback');
       }
     }
 
@@ -538,7 +538,6 @@
       }
     }
 
-    // Надежная подгрузка обложек без подвисаний
     function updateCover(coverUrl, isInitial = false) {
       if (!coverUrl) return;
 
@@ -585,7 +584,7 @@
       e.preventDefault();
       triggerHaptic();
 
-      const botUsername = 'radiomishor_bot'; 
+      const botUsername = 'RadioMishorBot'; 
       const botUrl = `https://t.me/${botUsername}`; 
       const cleanTrackText = currentTrackText.replace(/ • /g, '').trim();
       const shareText = `Слушаю сейчас на Radio Mishor: ${cleanTrackText}\n${botUrl}`;
