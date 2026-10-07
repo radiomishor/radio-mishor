@@ -24,7 +24,7 @@
 
     body {
       font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #050505; /* Заменили синий на глубокий черный */
+      background-color: #050505;
       color: #ffffff;
       height: 100vh;
       display: flex;
@@ -37,7 +37,6 @@
       position: relative;
     }
 
-    /* Динамический размытый фон */
     .bg-blur {
       position: absolute;
       top: -10%;
@@ -46,7 +45,7 @@
       height: 120%;
       background-size: cover;
       background-position: center;
-      filter: blur(50px) brightness(0.35); /* Усилили размытие и затемнение */
+      filter: blur(50px) brightness(0.35);
       z-index: -1;
       transition: background-image 0.8s ease-in-out;
       pointer-events: none;
@@ -64,20 +63,20 @@
       font-weight: 800;
       letter-spacing: -0.3px;
       line-height: 1;
-      color: #ffffff; /* Сделали логотип идеально белым */
-      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.7); /* Добавили мощную тень для читаемости */
+      color: #ffffff;
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
       text-transform: uppercase;
     }
 
+    /* Изменено: убрана рамка, оставлена только парящая тень */
     .cover-container {
       width: 100%;
       max-width: 330px;
       aspect-ratio: 1 / 1;
       position: relative;
       border-radius: 12px;
-      background: rgba(15, 15, 15, 0.4); /* Нейтральный черный полупрозрачный фон */
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
-      padding: 4px;
+      background: transparent;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -88,7 +87,7 @@
       height: 100%;
       position: relative;
       overflow: hidden;
-      border-radius: 9px;
+      border-radius: 12px;
     }
 
     .cover-image {
@@ -106,8 +105,9 @@
       opacity: 1;
     }
 
-    /* Базовый стиль для кнопок-плашек (теперь в темных тонах) */
+    /* Изменено: принудительное наследование шрифта для идентичности кнопок */
     .cover-btn {
+      font-family: 'Urbanist', sans-serif;
       position: absolute;
       z-index: 10;
       display: inline-flex;
@@ -158,6 +158,7 @@
       width: 14px;
       height: 14px;
       fill: currentColor;
+      flex-shrink: 0;
     }
 
     .player-bar {
@@ -259,7 +260,6 @@
 </head>
 <body>
 
-  <!-- Динамический размытый фон -->
   <div id="bgBlur" class="bg-blur"></div>
 
   <header class="header">
@@ -277,9 +277,9 @@
 
       <button id="shareBtn" class="cover-btn share-btn visible" aria-label="Share Track">
         <span>Share</span>
-        <!-- Иконка Telegram -->
+        <!-- Изменено: Идеально чистая иконка бумажного самолетика -->
         <svg viewBox="0 0 24 24">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0l-3.51 2.21c-.48.33-.94.49-1.39.48-.5-.01-1.46-.28-2.17-.51-.87-.28-1.56-.43-1.5-.91.03-.25.38-.51 1.05-.78 4.11-1.79 6.85-2.97 8.22-3.54 3.92-1.64 4.73-1.92 5.27-1.92.12 0 .38.03.54.17.13.12.17.28.19.42z"/>
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>
         </svg>
       </button>
 
@@ -308,10 +308,17 @@
       tg.expand();
     }
 
-    // Усиленный виброотклик (medium вместо light)
+    // Усиленный Haptic + надежный fallback для Android
     function triggerHaptic() {
-      if (tg?.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred('medium');
+      try {
+        if (tg && tg.HapticFeedback) {
+          tg.HapticFeedback.impactOccurred('heavy');
+        }
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      } catch (e) {
+        console.log('Haptic API not available');
       }
     }
 
@@ -539,10 +546,12 @@
       e.preventDefault();
       triggerHaptic();
 
-      // Надежный метод шеринга: ссылка на бот теперь вшита в сам текст
-      const botUrl = 'https://t.me/RadioMishorBot'; 
-      const shareText = `Слушаю сейчас: ${currentTrackText.replace(/ • /g, '').trim()}\n\nПрисоединяйся к эфиру: ${botUrl}`;
-      const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(shareText)}`;
+      // Укажите ВАШ точный юзернейм бота (без @)
+      const botUsername = 'radiomishor_bot'; 
+      const botUrl = `https://t.me/${botUsername}`; 
+      
+      const shareText = `Слушаю сейчас: ${currentTrackText.replace(/ • /g, '').trim()}\n\nПрисоединяйся к эфиру:`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`;
 
       if (tg && tg.openTelegramLink) {
         tg.openTelegramLink(shareUrl);
