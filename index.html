@@ -23,28 +23,35 @@
       user-select: none;
     }
 
-    body {
-      font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    html, body {
+      width: 100%;
+      height: 100%;
       background-color: #050505;
       color: #ffffff;
-      height: 100vh;
-      height: 100svh; /* Защита вёрстки при повороте экрана */
+      overflow-x: hidden;
+      overflow-y: auto; /* Разрешаем скролл в горизонтальном режиме */
+    }
+
+    body {
+      font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      min-height: 100svh;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
-      padding: 24px 20px 36px 20px;
-      overflow: hidden;
+      padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 24px) env(safe-area-inset-left, 16px);
       -webkit-font-smoothing: antialiased;
       position: relative;
     }
 
+    /* Адаптированный размытый фон */
     .bg-blur {
-      position: absolute;
-      top: -10%;
-      left: -10%;
-      width: 120%;
-      height: 120%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background-size: cover;
       background-position: center;
       filter: blur(50px) brightness(0.35);
@@ -52,18 +59,18 @@
       transition: background-image 0.8s ease-in-out;
       pointer-events: none;
       transform: translateZ(0);
-      will-change: transform;
     }
 
     .header {
       width: 100%;
       text-align: center;
-      margin-top: 10px;
+      margin-top: 6px;
+      margin-bottom: 12px;
     }
 
     .logo {
       font-family: 'Urbanist', sans-serif;
-      font-size: 34px;
+      font-size: 32px;
       font-weight: 800;
       letter-spacing: -0.3px;
       line-height: 1;
@@ -83,6 +90,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      margin: 10px 0;
     }
 
     .cover-wrapper {
@@ -101,7 +109,7 @@
       top: 0;
       left: 0;
       opacity: 0;
-      transition: opacity 0.6s ease-in-out;
+      transition: opacity 0.5s ease-in-out;
     }
 
     .cover-image.active {
@@ -116,7 +124,7 @@
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      background: rgba(20, 20, 20, 0.7);
+      background: rgba(20, 20, 20, 0.75);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -170,6 +178,7 @@
       justify-content: space-between;
       gap: 12px;
       padding: 8px 12px 8px 16px;
+      margin-top: 10px;
     }
 
     .live-indicator {
@@ -220,7 +229,6 @@
       padding-left: 0%;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
-      perspective: 1000px;
       will-change: transform;
       animation: marquee 8s linear infinite;
     }
@@ -257,6 +265,38 @@
       fill: #050505 !important;
       transition: all 0.2s ease;
     }
+
+    /* СТИЛИ ДЛЯ ЛАНДШАФТНОГО (ГОРИЗОНТАЛЬНОГО) РЕЖИМА */
+    @media screen and (orientation: landscape) and (max-height: 500px) {
+      body {
+        justify-content: flex-start;
+        padding-top: 12px;
+        padding-bottom: 20px;
+      }
+
+      .logo {
+        font-size: 26px;
+      }
+
+      .cover-container {
+        max-width: 180px;
+        margin: 6px 0;
+      }
+
+      .player-bar {
+        margin-top: 4px;
+      }
+
+      .play-btn {
+        width: 52px;
+        height: 52px;
+      }
+
+      .play-btn svg {
+        width: 22px;
+        height: 22px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -278,7 +318,6 @@
 
       <button id="shareBtn" class="cover-btn share-btn visible" aria-label="Share Track">
         <span>Share</span>
-        <!-- Оригинальный логотип Telegram (круг с самолетиком) -->
         <svg viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" fill="#229ED9"/>
           <path d="M17.5 7.5L5.5 12.25L9.5 14.5L15.5 9.5L10.5 14L14.5 17.5L17.5 7.5Z" fill="#ffffff"/>
@@ -308,18 +347,21 @@
     if (tg) {
       tg.ready();
       tg.expand();
+      // Растягиваем интерфейс на весь экран Telegram
+      if (tg.setHeaderColor) tg.setHeaderColor('#050505');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#050505');
     }
 
+    // Гарантированный виброотклик
     function triggerHaptic() {
       try {
         if (tg && tg.HapticFeedback) {
-          tg.HapticFeedback.impactOccurred('heavy');
-        }
-        if (navigator.vibrate) {
-          navigator.vibrate(100);
+          tg.HapticFeedback.impactOccurred('medium');
+        } else if (navigator.vibrate) {
+          navigator.vibrate(40);
         }
       } catch (e) {
-        console.log('Haptic failed');
+        console.log('Haptic notification fallback');
       }
     }
 
@@ -434,7 +476,7 @@
           navigator.mediaSession.setActionHandler('stop', () => { if (isPlaying) playBtn.click(); });
         }
       } catch (e) {
-        console.warn('MediaSession API fallback:', e);
+        console.warn('MediaSession API error:', e);
       }
     }
 
@@ -484,7 +526,6 @@
           primaryAudio.volume = Math.max(0, Math.min(1, 1 - fadeProgress));
           secondaryAudio.volume = Math.max(0, Math.min(1, fadeProgress));
 
-          // Жесткое переключение плеера в конце кросс-фейда с гарантией старта
           if (timeLeft <= 0.15 && activePlayer !== (activePlayer === 'A' ? 'B' : 'A')) {
             activePlayer = activePlayer === 'A' ? 'B' : 'A';
             primaryAudio.pause();
@@ -497,6 +538,7 @@
       }
     }
 
+    // Надежная подгрузка обложек без подвисаний
     function updateCover(coverUrl, isInitial = false) {
       if (!coverUrl) return;
 
@@ -507,17 +549,12 @@
 
       if (!isInitial && (activeImg.src === coverUrl || nextImg.src === coverUrl)) return;
 
-      const tempImg = new Image();
-      tempImg.src = coverUrl;
-      tempImg.onload = () => {
-        nextImg.src = coverUrl;
+      nextImg.src = coverUrl;
+      nextImg.onload = () => {
         nextImg.classList.add('active');
         if (!isInitial && nextImg !== activeImg) {
           activeImg.classList.remove('active');
         }
-      };
-      tempImg.onerror = () => {
-        console.error('Ошибка загрузки обложки:', coverUrl);
       };
     }
 
@@ -548,7 +585,6 @@
       e.preventDefault();
       triggerHaptic();
 
-      // Используем переменную botUsername для гибкой настройки
       const botUsername = 'radiomishor_bot'; 
       const botUrl = `https://t.me/${botUsername}`; 
       const cleanTrackText = currentTrackText.replace(/ • /g, '').trim();
