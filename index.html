@@ -1,627 +1,962 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#050505">
   <title>Radio Mishor</title>
-  
-  <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  
-  <!-- Google Fonts: Urbanist -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800&display=swap" rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+  <script id="telegramSDK" async src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
+    :root {
+      color-scheme: dark;
+      --app-height: 100vh;
+      --safe-top: max(env(safe-area-inset-top, 0px), var(--device-top, 0px));
+      --safe-right: max(env(safe-area-inset-right, 0px), var(--device-right, 0px));
+      --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--device-bottom, 0px));
+      --safe-left: max(env(safe-area-inset-left, 0px), var(--device-left, 0px));
+      --inset-top: calc(var(--safe-top) + var(--content-top, 0px));
+      --inset-bottom: calc(var(--safe-bottom) + var(--content-bottom, 0px));
     }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      background-color: #050505;
-      color: #ffffff;
-      overflow-x: hidden;
-      overflow-y: auto;
-    }
-
+    @supports (height: 100svh) { :root { --app-height: 100svh; } }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #050505; }
     body {
-      font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-height: 100vh;
-      min-height: 100svh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center; /* Центрируем всю группу элементов по вертикали */
-      align-items: center;
-      padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 32px) 20px;
-      -webkit-font-smoothing: antialiased;
-      position: relative;
+      font-family: 'Urbanist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #fff; -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
-
+    button, a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button { font: inherit; }
+    button, .logo, .cover-container { -webkit-user-select: none; user-select: none; }
+    button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+    button:disabled { cursor: default; opacity: .5; }
+    [hidden] { display: none !important; }
+    .backgrounds { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
     .bg-blur {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-size: cover;
-      background-position: center;
-      filter: blur(50px) brightness(0.35);
-      z-index: -1;
-      transition: background-image 0.8s ease-in-out;
-      pointer-events: none;
-      transform: translateZ(0);
+      position: absolute; inset: -45px; background-size: cover; background-position: center;
+      filter: blur(38px) brightness(.32); opacity: 0; transition: opacity .7s ease;
     }
-
-    .header {
-      width: 100%;
-      text-align: center;
-      margin-top: 10px;
-      margin-bottom: 24px; /* Опускаем логотип немного ниже */
+    .bg-blur.active { opacity: 1; }
+    .app {
+      position: relative; z-index: 1; width: 100%;
+      height: var(--app-height); min-height: calc(380px + var(--inset-top) + var(--inset-bottom));
+      padding: calc(28px + var(--inset-top))
+        calc(20px + var(--safe-right) + var(--content-right, 0px))
+        calc(24px + var(--inset-bottom))
+        calc(20px + var(--safe-left) + var(--content-left, 0px));
+      display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 24px; justify-items: center;
     }
-
+    .header { width: 100%; text-align: center; }
     .logo {
-      font-family: 'Urbanist', sans-serif;
-      font-size: 34px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      line-height: 1;
-      color: #ffffff;
-      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
-      text-transform: uppercase;
+      margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -.3px; line-height: 1;
+      text-transform: uppercase; text-shadow: 0 4px 16px #000b;
     }
-
+    .artwork-zone { display: grid; place-items: center; width: 100%; min-height: 0; }
     .cover-container {
-      width: 100%;
-      max-width: 310px;
-      aspect-ratio: 1 / 1;
-      position: relative;
-      border-radius: 12px;
-      background: #0a0a0a;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.6);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 0 auto;
+      width: min(100%, 300px, max(140px, calc(var(--app-height) - 260px - var(--inset-top) - var(--inset-bottom))));
+      aspect-ratio: 1; position: relative; border-radius: 12px; background: #0a0a0a;
+      box-shadow: 0 16px 40px #000c, 0 4px 12px #0009;
+      isolation: isolate; overflow: hidden;
     }
-
-    .cover-wrapper {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      overflow: hidden;
-      border-radius: 12px;
-    }
-
-    .cover-image {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      position: absolute;
-      top: 0;
-      left: 0;
-      opacity: 0;
-      transition: opacity 0.5s ease-in-out;
-    }
-
-    .cover-image.active {
-      opacity: 1;
-    }
-
+    .placeholder { position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+      background: radial-gradient(circle at 50% 46%, #242424, #0a0a0a 66%); color: #727272; }
+    .placeholder strong { font-size: 24px; font-weight: 800; letter-spacing: 4px; }
+    .placeholder span { font-size: 9px; letter-spacing: 5px; margin-top: 7px; }
+    .cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+      opacity: 0; transition: opacity .6s ease; }
+    .cover-image.active { opacity: 1; }
     .cover-btn {
-      font-family: 'Urbanist', sans-serif;
-      position: absolute;
-      z-index: 10;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: rgba(20, 20, 20, 0.75);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 20px;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      text-decoration: none;
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      cursor: pointer;
+      position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 6px;
+      min-height: 36px; padding: 7px 12px; background: #141414b3;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid #ffffff26; border-radius: 20px; color: #fff;
+      font-size: 12px; font-weight: 700; letter-spacing: .3px; text-decoration: none;
+      box-shadow: 0 4px 12px #0005; cursor: pointer; transition: transform .15s ease;
     }
-
-    .buy-btn {
-      top: 12px;
-      right: 12px;
-      transform: translateY(-4px);
-    }
-
-    .share-btn {
-      bottom: 12px;
-      left: 12px;
-      transform: translateY(4px);
-    }
-
-    .cover-btn.visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .cover-btn:active {
-      transform: scale(0.95);
-      background: rgba(40, 40, 40, 0.9);
-    }
-
-    .cover-btn svg {
-      width: 15px;
-      height: 15px;
-      flex-shrink: 0;
-    }
-
-    .player-bar {
-      width: 100%;
-      max-width: 360px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 12px 8px 16px;
-      margin-top: 28px; /* Подтягиваем плеер ближе к обложке */
-    }
-
-    .live-indicator {
-      width: 12px;
-      height: 12px;
-      background-color: #e33452;
-      border-radius: 50%;
-      flex-shrink: 0;
-      box-shadow: 0 0 12px rgba(227, 52, 82, 0.8);
-      animation: pulse 1.8s infinite ease-in-out;
-    }
-
+    .cover-btn:active { transform: scale(.96); }
+    .cover-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .buy-btn { top: 12px; right: 12px; }
+    .share-btn { bottom: 12px; left: 12px; }
+    .player { width: 100%; max-width: 360px; min-width: 0; }
+    .player-bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 16px; }
+    .live-indicator { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; background: #676767; }
+    .app[data-state="playing"] .live-indicator { background: #e33452; animation: pulse 1.8s infinite ease-in-out; }
+    .app[data-state="buffering"] .live-indicator { background: #d7a44b; }
+    .app[data-state="error"] .live-indicator { background: #e33452; }
     @keyframes pulse {
-      0% {
-        transform: scale(0.95);
-        opacity: 0.85;
-        box-shadow: 0 0 0 0 rgba(227, 52, 82, 0.8);
-      }
-      70% {
-        transform: scale(1.15);
-        opacity: 1;
-        box-shadow: 0 0 0 8px rgba(227, 52, 82, 0);
-      }
-      100% {
-        transform: scale(0.95);
-        opacity: 0.85;
-        box-shadow: 0 0 0 0 rgba(227, 52, 82, 0);
-      }
+      0%, 100% { transform: scale(.95); box-shadow: 0 0 0 0 #e3345280; }
+      70% { transform: scale(1.12); box-shadow: 0 0 0 8px #e3345200; }
     }
-
-    .track-info {
-      flex: 1;
-      overflow: hidden;
-      white-space: nowrap;
-      position: relative;
-      mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-      -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    .track-info { flex: 1; min-width: 0; overflow: hidden; }
+    .track-info.scrolling {
+      mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
     }
-
-    .track-marquee {
-      font-family: 'Urbanist', sans-serif;
-      display: inline-block;
-      font-size: 18px;
-      font-weight: 500;
-      letter-spacing: 0.2px;
-      color: #ffffff;
-      white-space: nowrap;
-      padding-left: 0%;
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
-      will-change: transform;
-      animation: marquee 8s linear infinite;
+    .track-marquee { display: inline-flex; width: max-content; font-size: 18px; font-weight: 500;
+      line-height: 1.35; letter-spacing: .2px; white-space: nowrap; }
+    .track-copy { flex-shrink: 0; }
+    .track-copy + .track-copy { display: none; }
+    .scrolling .track-copy { padding-right: 44px; }
+    .scrolling .track-copy + .track-copy { display: inline; }
+    .scrolling .track-marquee { animation: marquee var(--marquee-duration, 14s) linear infinite; }
+    @keyframes marquee { to { transform: translateX(-50%); } }
+    .play-btn { position: relative; width: 64px; height: 64px; border-radius: 50%; border: 0;
+      display: grid; place-items: center; flex: 0 0 auto; background: #fff; color: #050505;
+      cursor: pointer; box-shadow: 0 6px 20px #0005; transition: transform .15s ease; }
+    .play-btn:active { transform: scale(.94); }
+    .play-btn svg { width: 28px; height: 28px; fill: currentColor; }
+    .play-btn[aria-busy="true"]::after { content: ''; position: absolute; inset: -5px; border: 2px solid #ffffff26;
+      border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-row { min-height: 30px; display: flex; justify-content: center; align-items: center;
+      gap: 8px; padding: 2px 4px 0; }
+    .status { margin: 0; color: #c2c2c2; font-size: 11px; line-height: 1.4; text-align: center; }
+    .retry-btn { flex-shrink: 0; padding: 6px 4px; border: 0; background: none; color: #fff;
+      text-decoration: underline; font-size: 12px; cursor: pointer; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    @media (max-height: 580px) {
+      .app { gap: 16px; padding-top: calc(18px + var(--inset-top)); padding-bottom: calc(14px + var(--inset-bottom)); }
+      .logo { font-size: 29px; }
     }
-
-    @keyframes marquee {
-      0% { transform: translate3d(0, 0, 0); }
-      100% { transform: translate3d(-50%, 0, 0); }
+    @media (max-height: 500px) and (min-width: 600px) {
+      .app { min-height: calc(260px + var(--inset-top) + var(--inset-bottom));
+        grid-template-columns: 1fr 1.15fr; grid-template-rows: auto minmax(0, 1fr); }
+      .header { grid-column: 1 / -1; }
+      .cover-container { width: min(100%, 260px, max(130px, calc(var(--app-height) - 100px - var(--inset-top) - var(--inset-bottom)))); }
+      .player { align-self: center; }
     }
-
-    .play-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: #ffffff !important;
-      border: none;
-      outline: none;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .play-btn:active {
-      transform: scale(0.94);
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-    }
-
-    .play-btn svg {
-      width: 28px;
-      height: 28px;
-      fill: #050505 !important;
-      transition: all 0.2s ease;
-    }
-
-    /* Адаптированный компактный вид для горизонатльной ориентации */
-    @media screen and (orientation: landscape) and (max-height: 500px) {
-      body {
-        justify-content: flex-start;
-        padding-top: 12px;
-        padding-bottom: 20px;
-      }
-
-      .header {
-        margin-bottom: 12px;
-      }
-
-      .logo {
-        font-size: 26px;
-      }
-
-      .cover-container {
-        max-width: 170px;
-      }
-
-      .player-bar {
-        margin-top: 12px;
-      }
-
-      .play-btn {
-        width: 52px;
-        height: 52px;
-      }
-
-      .play-btn svg {
-        width: 22px;
-        height: 22px;
-      }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .track-info { overflow-x: auto; mask-image: none !important; -webkit-mask-image: none !important; }
+      .track-copy + .track-copy { display: none !important; }
+      .bg-blur { filter: blur(26px) brightness(.3); }
     }
   </style>
 </head>
 <body>
+  <div class="backgrounds" aria-hidden="true">
+    <div id="bgA" class="bg-blur"></div><div id="bgB" class="bg-blur"></div>
+  </div>
+  <div id="app" class="app" data-state="loading">
+    <header class="header"><h1 class="logo">Radio Mishor</h1></header>
+    <main class="artwork-zone" aria-label="Now on Radio Mishor">
+      <div class="cover-container">
+        <div class="placeholder" aria-hidden="true"><strong>MISHOR</strong><span>INDEPENDENT RADIO</span></div>
+        <img id="coverA" class="cover-image" alt="" decoding="async" aria-hidden="true">
+        <img id="coverB" class="cover-image" alt="" decoding="async" aria-hidden="true">
+        <a id="buyBtn" class="cover-btn buy-btn" target="_blank" rel="noopener noreferrer" hidden>
+          <span>Buy Track</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 19L19 5M19 5H9M19 5V15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <button id="shareBtn" class="cover-btn share-btn" type="button" disabled aria-label="Share this track on Telegram">
+          <span>Share</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" fill="#229ED9"/>
+            <path d="M17.5 7.5L5.5 12.25L9.5 14.5L15.5 9.5L10.5 14L14.5 17.5L17.5 7.5Z" fill="#fff"/>
+          </svg>
+        </button>
+      </div>
+    </main>
+    <footer class="player">
+      <div class="player-bar">
+        <div id="liveIndicator" class="live-indicator" aria-hidden="true"></div>
+        <div id="trackInfo" class="track-info">
+          <span id="accessibleTrack" class="sr-only" aria-live="polite">Loading playlist</span>
+          <div id="trackTitle" class="track-marquee" aria-hidden="true">
+            <span id="titleA" class="track-copy">Connecting...</span><span id="titleB" class="track-copy"></span>
+          </div>
+        </div>
+        <button id="playBtn" class="play-btn" type="button" aria-label="Play live radio" aria-pressed="false" aria-busy="false" disabled>
+          <svg id="playIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/></svg>
+        </button>
+      </div>
+      <div class="status-row">
+        <p id="status" class="status" role="status" aria-live="polite">Loading playlist...</p>
+        <button id="retryBtn" class="retry-btn" type="button" hidden>Retry</button>
+      </div>
+    </footer>
+  </div>
+  <noscript>This radio requires JavaScript.</noscript>
 
-  <div id="bgBlur" class="bg-blur"></div>
+<script id="radio-core">
+/* Radio Mishor core. Pure schedule logic and an event-driven audio engine.
+ * No DOM, Telegram, storage or fetch dependencies. Regression tests extract
+ * this exact block from index.html, so tests cannot drift from production.
+ */
+const RadioCore = (() => {
+  'use strict';
+  const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
+  const DEFAULT_EPOCH = Date.parse('2026-01-01T00:00:00Z') / 1000;
 
-  <header class="header">
-    <h1 class="logo">Radio Mishor</h1>
-  </header>
-
-  <main class="cover-container">
-    <div class="cover-wrapper">
-      <a id="buyBtn" class="cover-btn buy-btn" href="#" target="_blank" aria-label="Buy Track">
-        <span>Buy Track</span>
-        <svg viewBox="0 0 24 24">
-          <path d="M5 19L19 5M19 5H9M19 5V15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-
-      <button id="shareBtn" class="cover-btn share-btn visible" aria-label="Share Track">
-        <span>Share</span>
-        <svg viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" fill="#229ED9"/>
-          <path d="M17.5 7.5L5.5 12.25L9.5 14.5L15.5 9.5L10.5 14L14.5 17.5L17.5 7.5Z" fill="#ffffff"/>
-        </svg>
-      </button>
-
-      <img id="coverA" class="cover-image" src="" alt="Album Cover A">
-      <img id="coverB" class="cover-image" src="" alt="Album Cover B">
-    </div>
-  </main>
-
-  <footer class="player-bar">
-    <div class="live-indicator" title="Live Stream"></div>
-    <div class="track-info">
-      <div id="trackTitle" class="track-marquee">Подключение...</div>
-    </div>
-
-    <button id="playBtn" class="play-btn" aria-label="Play">
-      <svg id="playIcon" viewBox="0 0 24 24">
-        <path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>
-      </svg>
-    </button>
-  </footer>
-
-  <script>
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-      if (tg.setHeaderColor) tg.setHeaderColor('#050505');
-      if (tg.setBackgroundColor) tg.setBackgroundColor('#050505');
+  function httpURL(value, base, required = false) {
+    if (typeof value !== 'string' || !value.trim()) {
+      if (required) throw new Error('Missing audio URL.');
+      return '';
     }
-
-    function triggerHaptic() {
-      try {
-        if (tg && tg.HapticFeedback) {
-          tg.HapticFeedback.impactOccurred('medium');
-        } else if (navigator.vibrate) {
-          navigator.vibrate(40);
-        }
-      } catch (e) {
-        console.log('Haptic fallback');
+    try {
+      const url = new URL(value.trim(), base);
+      if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) {
+        throw new Error('Use a public HTTPS URL.');
       }
+      if (new URL(base).protocol === 'https:' && url.protocol !== 'https:') {
+        throw new Error('HTTP media is blocked on an HTTPS page.');
+      }
+      return url.href;
+    } catch (error) {
+      if (required) throw new Error(`Invalid audio URL: ${value}`);
+      return '';
     }
+  }
 
-    const PLAYLIST_URL = 'playlist.json';
-    const CROSSFADE_DURATION = 5;
+  function parseEpoch(value) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 1e11) {
+      return value; // Unix SECONDS, not milliseconds.
+    }
+    if (typeof value === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+      const ms = Date.parse(value);
+      if (Number.isFinite(ms)) return ms / 1000;
+    }
+    throw new Error('starts_at must be Unix seconds or an ISO date with a timezone.');
+  }
 
-    let playlist = [];
-    let totalPlaylistDuration = 0;
-    let isPlaying = false;
-    let currentBuyUrl = '';
-    let currentTrackText = '';
+  function normalize(raw, base, defaultCrossfade = 5) {
+    const legacy = Array.isArray(raw);
+    const input = legacy ? raw : raw && raw.tracks;
+    if (!Array.isArray(input) || input.length === 0) throw new Error('The playlist is empty.');
+    if (input.length > 10000) throw new Error('The playlist exceeds 10,000 tracks.');
+    const usedIDs = new Set();
+    const tracks = input.map((track, index) => {
+      if (!track || typeof track !== 'object') throw new Error(`Track ${index + 1}: invalid entry.`);
+      const duration = typeof track.duration === 'number' || typeof track.duration === 'string'
+        ? Number(track.duration) : NaN;
+      if (!Number.isFinite(duration) || duration <= 0) {
+        throw new Error(`Track ${index + 1}: duration must be a positive number in seconds.`);
+      }
+      let url;
+      try { url = httpURL(track.url, base, true); }
+      catch (error) { throw new Error(`Track ${index + 1}: ${error.message}`); }
+      const id = track.id == null ? `entry-${index}` : String(track.id).trim();
+      if (!id || usedIDs.has(id)) throw new Error(`Track ${index + 1}: duplicate or empty id.`);
+      usedIDs.add(id);
+      return Object.freeze({
+        id, url, duration,
+        artist: typeof track.artist === 'string' && track.artist.trim() ? track.artist.trim() : 'Unknown artist',
+        title: typeof track.title === 'string' && track.title.trim() ? track.title.trim() : 'Untitled',
+        cover: httpURL(track.cover, base),
+        buy_url: httpURL(track.buy_url, base)
+      });
+    });
+    const epoch = !legacy && raw.starts_at != null ? parseEpoch(raw.starts_at) : DEFAULT_EPOCH;
+    const suppliedFade = !legacy && raw.crossfade != null ? raw.crossfade : defaultCrossfade;
+    const crossfade = typeof suppliedFade === 'number' ? suppliedFade : NaN;
+    if (!Number.isFinite(crossfade) || crossfade < 0 || crossfade > 30) {
+      throw new Error('crossfade must be a number between 0 and 30 seconds.');
+    }
+    const overlaps = tracks.map((track, i) => tracks.length === 1 ? 0 : Math.min(
+      crossfade, track.duration / 2, tracks[(i + 1) % tracks.length].duration / 2
+    ));
+    // Incoming + outgoing overlaps never exceed a track's length: at most two voices.
+    const starts = [];
+    let length = 0;
+    for (let i = 0; i < tracks.length; i++) {
+      starts.push(length);
+      length += tracks[i].duration - overlaps[i];
+    }
+    if (!Number.isFinite(length) || length <= 0) throw new Error('Invalid total duration.');
+    const version = !legacy && raw.version != null ? String(raw.version) : 'legacy';
+    // Compare canonical strings, not URL DOM properties or a collision-prone hash.
+    const audioKey = JSON.stringify([epoch, overlaps, tracks.map(t => [t.id, t.url, t.duration])]);
+    const fingerprint = JSON.stringify([version, audioKey, tracks]);
+    return Object.freeze({
+      tracks: Object.freeze(tracks), starts: Object.freeze(starts), overlaps: Object.freeze(overlaps),
+      length, epoch, crossfade, version, audioKey, fingerprint,
+      scheduled: !legacy && raw.starts_at != null
+    });
+  }
 
-    let activePlayer = 'A';
-    const audioA = new Audio();
-    const audioB = new Audio();
-    audioA.crossOrigin = "anonymous";
-    audioB.crossOrigin = "anonymous";
+  function programme(raw, base, fade = 5) {
+    if (raw && !Array.isArray(raw) && raw.current) {
+      const current = normalize(raw.current, base, fade);
+      const next = raw.next == null ? null : normalize(raw.next, base, fade);
+      if (next && (!next.scheduled || next.epoch <= current.epoch)) {
+        throw new Error('next.starts_at must be later than current.starts_at.');
+      }
+      return { current, next };
+    }
+    return { current: normalize(raw, base, fade), next: null };
+  }
 
-    const playBtn = document.getElementById('playBtn');
-    const playIcon = document.getElementById('playIcon');
-    const trackTitle = document.getElementById('trackTitle');
-    const coverA = document.getElementById('coverA');
-    const coverB = document.getElementById('coverB');
-    const bgBlur = document.getElementById('bgBlur');
-    const buyBtn = document.getElementById('buyBtn');
-    const shareBtn = document.getElementById('shareBtn');
+  function itemAt(schedule, index, cycle) {
+    return {
+      index, cycle,
+      key: `${cycle}:${index}`,
+      track: schedule.tracks[index],
+      start: schedule.epoch + cycle * schedule.length + schedule.starts[index]
+    };
+  }
 
-    const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
-    const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5" ry="2.5"/>';
+  function frameAt(schedule, seconds) {
+    if (seconds < schedule.epoch) return null;
+    const elapsed = seconds - schedule.epoch;
+    const cycle = Math.floor(elapsed / schedule.length);
+    const phase = elapsed - cycle * schedule.length;
+    let lo = 0, hi = schedule.starts.length;
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (schedule.starts[mid] <= phase) lo = mid;
+      else hi = mid;
+    }
+    const main = itemAt(schedule, lo, cycle);
+    const age = Math.max(0, seconds - main.start);
+    const previousIndex = (lo + schedule.tracks.length - 1) % schedule.tracks.length;
+    const incoming = schedule.overlaps[previousIndex];
+    const previousCycle = lo === 0 ? cycle - 1 : cycle;
+    const hasTail = incoming > 0 && age < incoming && previousCycle >= 0;
+    const tail = hasTail ? itemAt(schedule, previousIndex, previousCycle) : null;
+    const progress = hasTail ? clamp(age / incoming, 0, 1) : 1;
+    const nextIndex = (lo + 1) % schedule.tracks.length;
+    const next = itemAt(schedule, nextIndex, lo + 1 === schedule.tracks.length ? cycle + 1 : cycle);
+    return { main, tail, next, age, incoming, progress };
+  }
 
-    async function loadPlaylist() {
-      try {
-        const response = await fetch(`${PLAYLIST_URL}?v=${Date.now()}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        playlist = await response.json();
-        totalPlaylistDuration = playlist.reduce((sum, track) => sum + (Number(track.duration) || 0), 0);
-        
-        if (totalPlaylistDuration === 0) {
-          trackTitle.innerText = "Плейлист пуст";
+  class ProgrammeManager {
+    constructor() { this.active = null; this.pending = null; this.applyAt = null; }
+    ingest(program, now, playing) {
+      let candidate = program.current;
+      let future = program.next;
+      if (future && now >= future.epoch) { candidate = future; future = null; }
+      if (!this.active) {
+        this.active = candidate;
+      } else if (candidate.fingerprint === this.active.fingerprint) {
+        // A removed next entry cancels a previously announced release.
+        this.pending = null; this.applyAt = null;
+      } else if (candidate.audioKey === this.active.audioKey) {
+        this.active = candidate; // Metadata-only edit: do not reload audio.
+        this.pending = null; this.applyAt = null;
+      } else if (candidate.scheduled && candidate.epoch > now) {
+        future = candidate;
+      } else if (!playing || (candidate.scheduled && candidate.epoch > this.active.epoch)) {
+        this.active = candidate;
+        this.pending = null; this.applyAt = null;
+      } else if (!this.pending || candidate.fingerprint !== this.pending.fingerprint) {
+        const frame = frameAt(this.active, now);
+        this.pending = candidate;
+        this.applyAt = frame ? frame.next.start : now;
+      }
+      if (future) { this.pending = future; this.applyAt = future.epoch; }
+      return this.advance(now);
+    }
+    advance(now) {
+      if (this.pending && now >= this.applyAt) {
+        this.active = this.pending; this.pending = null; this.applyAt = null;
+      }
+      return this.active;
+    }
+  }
+
+  class Clock {
+    constructor(wall = () => Date.now(), monotonic = () => performance.now()) {
+      this.wall = wall; this.mono = monotonic;
+      this.base = wall(); this.baseMono = monotonic();
+      this.offset = 0; this.source = 'device';
+    }
+    now() { return (this.base + this.mono() - this.baseMono) / 1000; }
+    reanchor() { this.base = this.wall() + this.offset; this.baseMono = this.mono(); }
+    sample(headers, sent, received) {
+      const date = Date.parse(headers.get('Date') || '');
+      const age = Number(headers.get('Age') || 0);
+      const rtt = received - sent;
+      if (!Number.isFinite(date) || !Number.isFinite(age) || age < 0 || rtt < 0 || rtt > 5000) return false;
+      // HTTP time has one-second precision; this is an estimate, not an NTP clock.
+      const target = date + age * 1000 + 500 + rtt / 2;
+      const projected = target + this.mono() - received;
+      const offset = projected - this.wall();
+      if (this.source === 'device' || Math.abs(projected - this.now() * 1000) > 1500) {
+        this.base = target; this.baseMono = received; this.offset = offset;
+      }
+      this.source = 'http-date';
+      return true;
+    }
+  }
+
+  class Deck {
+    constructor(engine, audio, name) {
+      this.engine = engine; this.audio = audio; this.name = name;
+      this.item = null; this.generation = 0; this.operation = null;
+      this.desired = false; this.initialSeek = true; this.failures = 0;
+      this.failure = null; this.retryAt = 0; this.gain = 0;
+      this.waiting = false; this.lastAdvance = 0; this.lastPosition = 0;
+      this.lastSeek = -Infinity; this.ignorePauseUntil = 0;
+      audio.preload = 'none';
+      audio.setAttribute('playsinline', '');
+      // Deliberately no crossOrigin: ordinary media playback does not need CORS.
+      for (const event of ['loadedmetadata', 'canplay', 'playing', 'seeked', 'timeupdate', 'ended']) {
+        audio.addEventListener(event, () => {
+          if (!this.item) return;
+          if (event === 'playing' || event === 'canplay' || event === 'seeked') this.waiting = false;
+          if (Math.abs(audio.currentTime - this.lastPosition) > 0.03) {
+            this.lastPosition = audio.currentTime; this.lastAdvance = engine.mono();
+          }
+          if (event === 'loadedmetadata' && Number.isFinite(audio.duration) &&
+              Math.abs(audio.duration - this.item.track.duration) > 0.8) {
+            engine.log('duration-mismatch', {
+              track: this.item.track.id, declared: this.item.track.duration, actual: audio.duration
+            });
+          }
+          engine.wake();
+        });
+      }
+      audio.addEventListener('waiting', () => { this.waiting = true; engine.wake(); });
+      audio.addEventListener('error', () => {
+        if (!this.item || !audio.error) return;
+        const code = audio.error.code;
+        this.fail(`Media error ${code}`, code === 3 || code === 4);
+        engine.wake();
+      });
+      audio.addEventListener('pause', () => {
+        if (this.desired && engine.wanted && audio.paused && !audio.ended && !audio.error &&
+            engine.mono() > this.ignorePauseUntil && !this.operation) {
+          engine.stop('Playback paused by your device. Tap Play to return to live.');
+        }
+      });
+    }
+    bind(item, keepFailures = false) {
+      this.release();
+      this.item = item;
+      if (!keepFailures) this.failures = 0;
+      this.failure = null; this.retryAt = 0; this.initialSeek = true; this.waiting = false;
+      this.lastAdvance = this.engine.mono(); this.lastPosition = 0; this.lastSeek = -Infinity;
+      this.audio.preload = 'auto'; this.audio.src = item.track.url;
+      this.audio.load();
+    }
+    release() {
+      this.generation++; this.operation = null; this.desired = false; this.gain = 0;
+      this.ignorePauseUntil = this.engine.mono() + 750;
+      this.audio.muted = true; this.audio.pause();
+      // Removing the src also cancels downloads of abandoned tracks.
+      if (this.item) { this.audio.removeAttribute('src'); this.audio.load(); }
+      this.item = null; this.failure = null;
+    }
+    silence() {
+      this.desired = false; this.gain = 0;
+      this.ignorePauseUntil = this.engine.mono() + 750;
+      this.audio.muted = true; this.audio.pause();
+    }
+    fail(message, permanent = false) {
+      if (!this.item || this.failure) return;
+      this.failure = message;
+      this.failures++;
+      this.retryAt = permanent || this.failures > 3 ? Infinity :
+        this.engine.mono() + [1000, 3000, 8000][this.failures - 1];
+      this.operation = null;
+      this.audio.muted = true;
+      this.ignorePauseUntil = this.engine.mono() + 750;
+      this.audio.pause();
+      this.engine.log('audio-error', { deck: this.name, track: this.item.track.id, message, attempts: this.failures });
+    }
+    audible() {
+      const a = this.audio;
+      return this.desired && !this.failure && !this.initialSeek && !a.paused && !a.ended &&
+        !a.seeking && !this.waiting && a.readyState >= 2;
+    }
+    setGain(gain) {
+      this.gain = clamp(gain, 0, 1);
+      const a = this.audio;
+      if (this.engine.mode === 'dual') {
+        try { a.volume = this.gain; } catch (_) { this.engine.useSingle(this); }
+      }
+      a.muted = this.gain <= 0 || this.initialSeek || a.seeking || !!this.failure;
+    }
+    ensure(item, force = false) {
+      this.item = item; this.desired = true;
+      const now = this.engine.mono();
+      if (this.failure) {
+        if (!this.engine.online() || now < this.retryAt) return;
+        this.bind(item, true); this.desired = true;
+      }
+      const a = this.audio;
+      const target = Math.max(0, this.engine.clock.now() - item.start);
+      if (a.readyState >= 1) {
+        if (Number.isFinite(a.duration) && target >= a.duration - 0.03 &&
+            item.track.duration - a.duration > 0.5) {
+          // Never extend or shorten a common timeline using one client's metadata.
+          this.fail('Audio ended before its scheduled boundary. Check duration.', true);
           return;
         }
-
-        const live = getLivePosition();
-        if (live.currentTrack) {
-          updateTrackDisplay(live.currentTrack);
-          if (live.currentTrack.cover) {
-            updateCover(live.currentTrack.cover, true);
+        // A naturally ended tail must not be play()'d again before the next tick.
+        if (a.ended && target >= a.duration - 0.5) return;
+        if (!a.seeking && (this.initialSeek || force ||
+            (Math.abs(a.currentTime - target) > 4 && now - this.lastSeek > 5000))) {
+          try {
+            if (Math.abs(a.currentTime - target) > 0.15) {
+              a.muted = true; a.currentTime = target;
+            }
+            this.initialSeek = false; this.lastSeek = now; this.lastAdvance = now;
+          } catch (error) {
+            this.engine.log('seek-deferred', { deck: this.name, message: error.message });
           }
         }
-
-        setInterval(() => {
-          updateLiveState(isPlaying);
-        }, 150);
-
-      } catch (error) {
-        console.error('Ошибка загрузки плейлиста:', error);
-        trackTitle.innerText = "Ошибка сети";
       }
-    }
-
-    function getLivePosition() {
-      if (totalPlaylistDuration === 0 || playlist.length === 0) {
-        return { trackIndex: 0, trackTime: 0, currentTrack: null };
+      if (now - this.lastAdvance > 20000 && this.engine.online()) {
+        this.fail('Audio loading timed out.'); return;
       }
-
-      const nowInSeconds = Date.now() / 1000;
-      let currentCycleTime = nowInSeconds % totalPlaylistDuration;
-
-      let accumulatedTime = 0;
-      for (let i = 0; i < playlist.length; i++) {
-        const track = playlist[i];
-        const duration = Number(track.duration) || 0;
-        if (currentCycleTime < accumulatedTime + duration) {
-          return {
-            trackIndex: i,
-            trackTime: currentCycleTime - accumulatedTime,
-            currentTrack: track
-          };
-        }
-        accumulatedTime += duration;
-      }
-
-      return { trackIndex: 0, trackTime: 0, currentTrack: playlist[0] };
-    }
-
-    function updateTrackDisplay(track) {
-      const fullText = `${track.artist} — ${track.title}`;
-      if (currentTrackText !== fullText) {
-        currentTrackText = fullText;
-        trackTitle.innerText = `${fullText}   •   ${fullText}   •   `;
-        updateCover(track.cover);
-        updateBuyButton(track.buy_url);
-        updateMediaSession(track); 
-      }
-    }
-
-    function updateMediaSession(track) {
+      if (!a.paused || this.operation || !this.engine.online()) return;
+      const generation = this.generation;
+      const operation = {};
+      this.operation = operation;
       try {
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: track.title,
-            artist: track.artist,
-            album: 'Radio Mishor Live',
-            artwork: [
-              { src: track.cover || '', sizes: '512x512', type: 'image/jpeg' }
-            ]
-          });
-
-          navigator.mediaSession.setActionHandler('play', () => { if (!isPlaying) playBtn.click(); });
-          navigator.mediaSession.setActionHandler('pause', () => { if (isPlaying) playBtn.click(); });
-          navigator.mediaSession.setActionHandler('stop', () => { if (isPlaying) playBtn.click(); });
-        }
-      } catch (e) {
-        console.warn('MediaSession API error:', e);
-      }
+        // Called synchronously by Start on a user gesture. Do not await metadata first.
+        const result = a.play();
+        Promise.resolve(result).then(() => {
+          if (generation !== this.generation || this.operation !== operation) return;
+          this.operation = null;
+          if (!this.engine.wanted || !this.desired) this.silence();
+          this.engine.wake();
+        }, error => this.playRejected(error, generation, operation));
+      } catch (error) { this.playRejected(error, generation, operation); }
     }
-
-    function updateLiveState(shouldPlayAudio = true) {
-      const live = getLivePosition();
-      if (!live.currentTrack) return;
-
-      updateTrackDisplay(live.currentTrack);
-
-      if (!shouldPlayAudio) return;
-
-      const primaryAudio = activePlayer === 'A' ? audioA : audioB;
-      const secondaryAudio = activePlayer === 'A' ? audioB : audioA;
-
-      if (primaryAudio.paused && shouldPlayAudio && primaryAudio.readyState >= 2) {
-        primaryAudio.play().catch(e => console.log('Stalled play resume failed'));
-      }
-
-      if (primaryAudio.src !== live.currentTrack.url) {
-        primaryAudio.src = live.currentTrack.url;
-        primaryAudio.currentTime = live.trackTime;
-        primaryAudio.volume = 1;
-        primaryAudio.play().catch(e => console.log('Autoplay blocked'));
-
-        secondaryAudio.pause();
-        secondaryAudio.volume = 0;
+    playRejected(error, generation, operation) {
+      if (generation !== this.generation || this.operation !== operation) return;
+      this.operation = null;
+      if (!this.desired || !this.engine.wanted) return;
+      if (error && error.name === 'NotAllowedError') {
+        const other = this.engine.decks.find(deck => deck !== this && deck.audible());
+        if (this.engine.mode === 'dual' && other) this.engine.useSingle(other);
+        else this.engine.stop('Tap Play to allow audio playback.', 'blocked');
+      } else if (error && error.name === 'AbortError') {
+        this.fail('Playback was interrupted.');
       } else {
-        if (Math.abs(primaryAudio.currentTime - live.trackTime) > 2.5) {
-          primaryAudio.currentTime = live.trackTime;
-        }
+        this.fail(error && error.message || 'Playback failed.', error && error.name === 'NotSupportedError');
+      }
+      this.engine.wake();
+    }
+  }
 
-        const timeLeft = live.currentTrack.duration - live.trackTime;
-
-        if (timeLeft <= CROSSFADE_DURATION && timeLeft > 0) {
-          const nextTrackIndex = (live.trackIndex + 1) % playlist.length;
-          const nextTrack = playlist[nextTrackIndex];
-
-          if (secondaryAudio.src !== nextTrack.url) {
-            secondaryAudio.src = nextTrack.url;
-            secondaryAudio.currentTime = 0;
-            secondaryAudio.volume = 0;
-            secondaryAudio.play().catch(e => console.log('Crossfade preload blocked'));
-          }
-
-          const fadeProgress = (CROSSFADE_DURATION - timeLeft) / CROSSFADE_DURATION;
-          
-          primaryAudio.volume = Math.max(0, Math.min(1, 1 - fadeProgress));
-          secondaryAudio.volume = Math.max(0, Math.min(1, fadeProgress));
-
-          if (timeLeft <= 0.15 && activePlayer !== (activePlayer === 'A' ? 'B' : 'A')) {
-            activePlayer = activePlayer === 'A' ? 'B' : 'A';
-            primaryAudio.pause();
-            secondaryAudio.play().catch(e => console.log('Crossfade handoff failed'));
-          }
-        } else {
-          primaryAudio.volume = 1;
-          secondaryAudio.volume = 0;
-        }
+  class AudioEngine {
+    constructor({ createAudio, clock, mono, online = () => true, mode = 'dual', onState = () => {},
+                  onTrack = () => {}, onWake = () => {}, log = () => {} }) {
+      this.clock = clock; this.mono = mono; this.online = online; this.mode = mode;
+      this.onState = onState; this.onTrack = onTrack; this.wake = onWake; this.log = log;
+      this.schedule = null; this.wanted = false; this.state = 'loading'; this.message = '';
+      this.busy = false; this.trackSignature = ''; this.lastStateSignature = '';
+      this.decks = [new Deck(this, createAudio(), 'A'), new Deck(this, createAudio(), 'B')];
+      this.singleDeck = this.decks[0];
+    }
+    setSchedule(schedule) {
+      if (!schedule || this.schedule === schedule) return;
+      if (this.schedule && this.schedule.audioKey !== schedule.audioKey) {
+        for (const deck of this.decks) deck.release();
+      }
+      this.schedule = schedule;
+    }
+    start() {
+      if (!this.schedule) return;
+      this.wanted = true; this.message = '';
+      for (const deck of this.decks) if (deck.failure) deck.release();
+      this.tick(true);
+    }
+    stop(message = '', state = 'stopped') {
+      this.wanted = false;
+      for (const deck of this.decks) deck.release();
+      this.publish(state, message);
+    }
+    retry() {
+      for (const deck of this.decks) deck.release();
+      this.start();
+    }
+    useSingle(preferred) {
+      this.mode = 'single'; this.singleDeck = preferred;
+      for (const deck of this.decks) if (deck !== preferred) deck.release();
+      try { preferred.audio.volume = 1; } catch (_) {}
+      this.log('single-player-fallback', {});
+      this.wake();
+    }
+    publish(state, message = '') {
+      this.state = state; this.message = message;
+      const signature = JSON.stringify([state, message, this.wanted]);
+      if (signature !== this.lastStateSignature) {
+        this.lastStateSignature = signature;
+        this.onState({ state, message, wanted: this.wanted });
       }
     }
-
-    function updateCover(coverUrl, isInitial = false) {
-      if (!coverUrl) return;
-
-      bgBlur.style.backgroundImage = `url(${coverUrl})`;
-
-      const activeImg = coverA.classList.contains('active') ? coverA : coverB;
-      const nextImg = isInitial ? coverA : (activeImg === coverA ? coverB : coverA);
-
-      if (!isInitial && (activeImg.src === coverUrl || nextImg.src === coverUrl)) return;
-
-      nextImg.src = coverUrl;
-      nextImg.onload = () => {
-        nextImg.classList.add('active');
-        if (!isInitial && nextImg !== activeImg) {
-          activeImg.classList.remove('active');
+    tick(force = false) {
+      if (this.busy || !this.schedule) return;
+      this.busy = true;
+      try {
+        const frame = frameAt(this.schedule, this.clock.now());
+        if (!frame) {
+          for (const deck of this.decks) deck.silence();
+          this.publish('scheduled', 'The broadcast has not started yet.'); return;
         }
+        const trackSignature = JSON.stringify(frame.main.track);
+        if (trackSignature !== this.trackSignature) {
+          this.trackSignature = trackSignature; this.onTrack(frame.main.track);
+        }
+        if (!this.wanted) {
+          if (this.state === 'loading' || this.state === 'scheduled') this.publish('stopped');
+          return;
+        }
+        const items = this.mode === 'dual' && frame.tail ? [frame.main, frame.tail] : [frame.main];
+        const required = new Set(items.map(item => item.key));
+        const bindings = [];
+        for (const item of items) {
+          let deck = this.mode === 'single' ? this.singleDeck :
+            this.decks.find(d => d.item && d.item.key === item.key);
+          if (!deck) deck = this.decks.find(d => !d.item || !required.has(d.item.key));
+          if (!deck) continue;
+          if (!deck.item || deck.item.key !== item.key) deck.bind(item);
+          deck.ensure(item, force);
+          bindings.push({ item, deck });
+        }
+        // Preserve the outgoing track at full volume until the incoming one can play.
+        // A late incoming track seeks to its current scheduled offset, never back to zero.
+        const main = bindings[0] && bindings[0].deck;
+        const tail = bindings[1] && bindings[1].deck;
+        const mainReady = main && main.audible();
+        const tailReady = tail && tail.audible();
+        if (main) main.setGain(tailReady ? frame.progress : 1);
+        if (tail) tail.setGain(mainReady ? 1 - frame.progress : 1);
+        const used = new Set(bindings.map(binding => binding.deck));
+        for (const deck of this.decks) {
+          if (used.has(deck)) continue;
+          deck.silence();
+          if (this.mode === 'dual' && frame.next.start - this.clock.now() <= 15) {
+            if (!deck.item || deck.item.key !== frame.next.key) deck.bind(frame.next);
+          } else if (deck.item) deck.release();
+        }
+        if (!this.wanted) return; // A synchronous play() failure may have stopped us.
+        const audible = bindings.some(({ deck }) => deck.audible() && deck.gain > 0 && !deck.audio.muted);
+        if (audible) this.publish('playing');
+        else if (!this.online()) this.publish('buffering', 'Connection lost. Reconnecting...');
+        else if (main && main.failure) this.publish('error',
+          main.retryAt === Infinity ? 'Cannot play this track. Retry or wait for the next one.' : 'Audio unavailable. Retrying...');
+        else this.publish('buffering', 'Connecting to live...');
+      } finally { this.busy = false; }
+    }
+    diagnostics() {
+      return {
+        state: this.state, wanted: this.wanted, mode: this.mode, clock: this.clock.source,
+        version: this.schedule && this.schedule.version,
+        decks: this.decks.map(d => ({
+          name: d.name, track: d.item && d.item.track.id, occurrence: d.item && d.item.key,
+          time: d.audio.currentTime, ready: d.audio.readyState, paused: d.audio.paused,
+          gain: d.gain, muted: d.audio.muted, error: d.failure, failures: d.failures
+        }))
       };
     }
+  }
+  return { normalize, programme, frameAt, ProgrammeManager, Clock, AudioEngine, httpURL, DEFAULT_EPOCH };
+})();
 
-    function updateBuyButton(buyUrl) {
-      if (currentBuyUrl === buyUrl) return;
-      currentBuyUrl = buyUrl || '';
+</script>
+<script id="radio-app">
+(() => {
+  'use strict';
+  // -------------------- OWNER SETTINGS --------------------
+  const CONFIG = Object.freeze({
+    playlistURL: 'playlist.json',
+    botUsername: 'RadioMishorBot',
+    crossfadeSeconds: 5,       // Default for the existing array-format playlist.
+    pollMilliseconds: 60000,
+    fetchTimeoutMilliseconds: 12000,
+    audioMode: 'auto'         // 'auto' or 'single'. Auto is conservative on iOS.
+  });
+  const BUILD = 'mishor-2.0.0';
+  const $ = id => document.getElementById(id);
+  const ui = Object.fromEntries(['app', 'playBtn', 'playIcon', 'status', 'retryBtn', 'trackInfo',
+    'trackTitle', 'titleA', 'titleB', 'accessibleTrack', 'buyBtn', 'shareBtn'].map(id => [id, $(id)]));
+  const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
+  const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5"/>';
+  let telegram = null, currentTrack = null, currentCover = '', coverGeneration = 0, coverActive = -1;
+  let tickTimer = null, pollTimer = null, refreshPromise = null, fetchController = null;
+  let wakeQueued = false, disposed = false, lastFetchError = '', initialFetchFailures = 0;
+  const logs = [];
+  function log(event, details = {}) {
+    const entry = { time: new Date().toISOString(), event, ...details };
+    logs.push(entry); if (logs.length > 60) logs.shift();
+    if (event.includes('error') || event.includes('mismatch')) console.warn('[Radio Mishor]', entry);
+  }
+  const clock = new RadioCore.Clock();
+  const manager = new RadioCore.ProgrammeManager();
+  const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  function supportsVolume() {
+    try { const audio = new Audio(); audio.volume = .5; return Math.abs(audio.volume - .5) < .01; }
+    catch (_) { return false; }
+  }
+  const mode = CONFIG.audioMode === 'single' || isIOS || !supportsVolume() ? 'single' : 'dual';
+  const engine = new RadioCore.AudioEngine({
+    createAudio: () => new Audio(), clock, mono: () => performance.now(),
+    online: () => navigator.onLine !== false, mode, onState: renderState,
+    onTrack: renderTrack, onWake: wake, log
+  });
 
-      if (currentBuyUrl.trim() !== '') {
-        buyBtn.classList.add('visible');
-      } else {
-        buyBtn.classList.remove('visible');
-      }
+  function renderState({ state, message, wanted }) {
+    ui.app.dataset.state = state;
+    ui.playBtn.disabled = !engine.schedule;
+    ui.playBtn.setAttribute('aria-label', wanted ? 'Stop live radio' : 'Play live radio');
+    ui.playBtn.setAttribute('aria-pressed', String(wanted));
+    ui.playBtn.setAttribute('aria-busy', String(wanted && state === 'buffering'));
+    ui.playIcon.innerHTML = wanted ? STOP_ICON : PLAY_ICON;
+    ui.status.textContent = message || (state === 'playing' ? 'LIVE' : 'Tap Play to listen live');
+    ui.retryBtn.hidden = state !== 'error';
+    if ('mediaSession' in navigator) {
+      try { navigator.mediaSession.playbackState = state === 'playing' ? 'playing' : wanted ? 'none' : 'paused'; }
+      catch (_) {}
     }
-
-    buyBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      triggerHaptic();
-      if (!currentBuyUrl) return;
-
-      if (tg && tg.openLink) {
-        tg.openLink(currentBuyUrl);
-      } else {
-        window.open(currentBuyUrl, '_blank');
+  }
+  function measureTitle() {
+    ui.trackInfo.classList.remove('scrolling');
+    const textWidth = ui.titleA.getBoundingClientRect().width;
+    const available = ui.trackInfo.clientWidth;
+    if (textWidth > available + 2 && available > 0) {
+      ui.trackInfo.classList.add('scrolling');
+      ui.trackTitle.style.setProperty('--marquee-duration', `${Math.max(10, (textWidth + 44) / 28)}s`);
+    }
+  }
+  function clearCover() {
+    coverActive = -1;
+    for (const id of ['coverA', 'coverB', 'bgA', 'bgB']) $(id).classList.remove('active');
+    for (const id of ['coverA', 'coverB']) $(id).setAttribute('aria-hidden', 'true');
+  }
+  async function renderCover(url, label) {
+    // Increment even on an empty cover to cancel any previous in-flight request.
+    const generation = ++coverGeneration;
+    currentCover = url;
+    if (!url) { clearCover(); return; }
+    const next = coverActive === 0 ? 1 : 0;
+    const img = next === 0 ? $('coverA') : $('coverB');
+    const bg = next === 0 ? $('bgA') : $('bgB');
+    try {
+      await new Promise((resolve, reject) => {
+        const probe = new Image();
+        probe.onload = resolve; probe.onerror = reject;
+        probe.src = url;
+      });
+      if (generation !== coverGeneration) return;
+      img.src = url;
+      if (typeof img.decode === 'function') await img.decode();
+      if (generation !== coverGeneration) return;
+      img.alt = `Cover: ${label}`;
+      bg.style.backgroundImage = `url(${JSON.stringify(url)})`;
+      for (const other of [$('coverA'), $('coverB')]) {
+        other.classList.toggle('active', other === img);
+        other.setAttribute('aria-hidden', String(other !== img));
       }
-    });
+      $('bgA').classList.toggle('active', bg === $('bgA'));
+      $('bgB').classList.toggle('active', bg === $('bgB'));
+      coverActive = next;
+    } catch (_) {
+      if (generation === coverGeneration) { clearCover(); log('cover-error', { url }); }
+    }
+  }
+  function renderTrack(track) {
+    currentTrack = track;
+    const text = `${track.artist} \u2014 ${track.title}`;
+    ui.titleA.textContent = text; ui.titleB.textContent = text;
+    ui.accessibleTrack.textContent = text; ui.trackInfo.title = text;
+    requestAnimationFrame(measureTitle);
+    if (track.cover !== currentCover) void renderCover(track.cover, text);
+    else if (coverActive >= 0) (coverActive === 0 ? $('coverA') : $('coverB')).alt = `Cover: ${text}`;
+    ui.buyBtn.hidden = !track.buy_url;
+    if (track.buy_url) ui.buyBtn.href = track.buy_url;
+    else ui.buyBtn.removeAttribute('href');
+    ui.shareBtn.disabled = false;
+    if ('mediaSession' in navigator && typeof window.MediaMetadata === 'function') {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title, artist: track.artist, album: 'Radio Mishor Live',
+          artwork: track.cover ? [{ src: track.cover }] : []
+        });
+      } catch (error) { log('media-metadata-error', { message: error.message }); }
+    }
+  }
 
-    shareBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      triggerHaptic();
-
-      const botUsername = 'RadioMishorBot'; 
-      const botUrl = `https://t.me/${botUsername}`; 
-      const cleanTrackText = currentTrackText.replace(/ • /g, '').trim();
-      const shareText = `Слушаю сейчас на Radio Mishor: ${cleanTrackText}\n${botUrl}`;
-      const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(shareText)}`;
-
-      if (tg && tg.openTelegramLink) {
-        tg.openTelegramLink(shareUrl);
-      } else {
-        window.open(shareUrl, '_blank');
-      }
-    });
-
-    playBtn.addEventListener('click', () => {
-      triggerHaptic();
-      const primaryAudio = activePlayer === 'A' ? audioA : audioB;
-
-      if (!isPlaying) {
-        isPlaying = true;
-        playIcon.innerHTML = STOP_ICON;
-        const live = getLivePosition();
-        if (live.currentTrack) {
-          if (primaryAudio.src !== live.currentTrack.url) {
-            primaryAudio.src = live.currentTrack.url;
-          }
-          primaryAudio.currentTime = live.trackTime;
-          primaryAudio.volume = 1;
-          primaryAudio.play().catch(e => console.log('Play blocked'));
+  function tick(force = false) {
+    if (disposed) return;
+    clearTimeout(tickTimer);
+    engine.setSchedule(manager.advance(clock.now()));
+    engine.tick(force);
+    const frame = engine.schedule ? RadioCore.frameAt(engine.schedule, clock.now()) : null;
+    const delay = engine.wanted ? frame && frame.tail && engine.mode === 'dual' ? 80 : 250 :
+      document.hidden ? 5000 : 1000;
+    tickTimer = setTimeout(tick, delay);
+  }
+  function wake() {
+    if (wakeQueued || disposed) return;
+    wakeQueued = true;
+    queueMicrotask(() => { wakeQueued = false; tick(); });
+  }
+  function refreshPlaylist() {
+    if (refreshPromise) return refreshPromise;
+    clearTimeout(pollTimer);
+    refreshPromise = (async () => {
+      fetchController = new AbortController();
+      const controller = fetchController;
+      const timeout = setTimeout(() => controller.abort(), CONFIG.fetchTimeoutMilliseconds);
+      const sent = performance.now();
+      try {
+        const url = new URL(CONFIG.playlistURL, document.baseURI);
+        url.searchParams.set('_radio', String(Date.now()));
+        const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        const received = performance.now();
+        if (!response.ok) throw new Error(`Playlist HTTP ${response.status}.`);
+        const text = await response.text();
+        if (text.length > 3000000) throw new Error('Playlist JSON exceeds 3 MB.');
+        const program = RadioCore.programme(JSON.parse(text), response.url || url.href, CONFIG.crossfadeSeconds);
+        // Validate first. A broken new file must not replace a working programme.
+        const firstValidPlaylist = !manager.active;
+        clock.sample(response.headers, sent, received);
+        manager.ingest(program, clock.now(), engine.wanted);
+        engine.setSchedule(manager.active);
+        initialFetchFailures = 0; lastFetchError = '';
+        ui.playBtn.disabled = false;
+        if (firstValidPlaylist && !engine.wanted) engine.publish('stopped');
+        tick();
+      } catch (error) {
+        if (disposed) return;
+        initialFetchFailures++;
+        lastFetchError = error.name === 'AbortError' ? 'Playlist request timed out.' : error.message;
+        log('playlist-error', { message: lastFetchError });
+        if (!manager.active) {
+          ui.titleA.textContent = 'Radio Mishor'; ui.titleB.textContent = 'Radio Mishor';
+          ui.accessibleTrack.textContent = 'Radio Mishor';
+          engine.publish('error', 'Cannot load playlist. Check your connection and retry.');
         }
-      } else {
-        isPlaying = false;
-        playIcon.innerHTML = PLAY_ICON;
-        audioA.pause();
-        audioB.pause();
+      } finally {
+        clearTimeout(timeout);
+        fetchController = null; refreshPromise = null;
+        if (!disposed) {
+          const delay = manager.active ? CONFIG.pollMilliseconds : Math.min(60000, 5000 * Math.max(1, initialFetchFailures));
+          pollTimer = setTimeout(refreshPlaylist, delay);
+        }
       }
-    });
+    })();
+    return refreshPromise;
+  }
 
-    loadPlaylist();
-  </script>
+  function haptic() {
+    try {
+      if (telegram && telegram.isVersionAtLeast('6.1') && telegram.HapticFeedback) {
+        telegram.HapticFeedback.impactOccurred('light'); return;
+      }
+    } catch (_) {}
+    try { if (navigator.vibrate) navigator.vibrate(25); } catch (_) {}
+  }
+  function viewport() {
+    const root = document.documentElement;
+    const height = telegram && telegram.viewportStableHeight ||
+      (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    if (height > 0) root.style.setProperty('--app-height', `${height}px`);
+    for (const edge of ['top', 'right', 'bottom', 'left']) {
+      const device = telegram && telegram.safeAreaInset && telegram.safeAreaInset[edge] || 0;
+      const content = telegram && telegram.contentSafeAreaInset && telegram.contentSafeAreaInset[edge] || 0;
+      root.style.setProperty(`--device-${edge}`, `${Math.max(0, device)}px`);
+      root.style.setProperty(`--content-${edge}`, `${Math.max(0, content)}px`);
+    }
+    requestAnimationFrame(measureTitle);
+  }
+  function connectTelegram() {
+    const candidate = window.Telegram && window.Telegram.WebApp;
+    if (!candidate || telegram || (!candidate.initData && (!candidate.platform || candidate.platform === 'unknown'))) return;
+    telegram = candidate;
+    const safe = fn => { try { fn(); } catch (error) { log('telegram-error', { message: error.message }); } };
+    safe(() => telegram.ready()); safe(() => telegram.expand());
+    if (telegram.isVersionAtLeast && telegram.isVersionAtLeast('6.1')) safe(() => telegram.setBackgroundColor('#050505'));
+    if (telegram.isVersionAtLeast && telegram.isVersionAtLeast('6.9')) safe(() => telegram.setHeaderColor('#050505'));
+    if (telegram.isVersionAtLeast && telegram.isVersionAtLeast('7.10')) safe(() => telegram.setBottomBarColor('#050505'));
+    safe(() => telegram.onEvent('viewportChanged', event => { if (!event || event.isStateStable !== false) viewport(); }));
+    if (telegram.isVersionAtLeast && telegram.isVersionAtLeast('8.0')) {
+      safe(() => telegram.onEvent('safeAreaChanged', viewport));
+      safe(() => telegram.onEvent('contentSafeAreaChanged', viewport));
+      safe(() => telegram.onEvent('activated', resume));
+    }
+    if (telegram.platform === 'ios' && engine.mode !== 'single') engine.useSingle(engine.decks[0]);
+    viewport();
+  }
+  function openLink(url, inTelegram = false) {
+    if (telegram) {
+      try {
+        if (inTelegram && typeof telegram.openTelegramLink === 'function') { telegram.openTelegramLink(url); return; }
+        if (!inTelegram && typeof telegram.openLink === 'function') { telegram.openLink(url); return; }
+      } catch (error) { log('open-link-error', { message: error.message }); }
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+  ui.playBtn.addEventListener('click', () => {
+    haptic();
+    if (engine.wanted) engine.stop();
+    else { engine.setSchedule(manager.advance(clock.now())); engine.start(); }
+    tick();
+  });
+  ui.retryBtn.addEventListener('click', () => {
+    haptic();
+    if (engine.schedule) engine.retry(); // Stay inside the user-gesture call stack.
+    void refreshPlaylist();
+  });
+  ui.buyBtn.addEventListener('click', event => {
+    haptic();
+    if (telegram && currentTrack && currentTrack.buy_url) { event.preventDefault(); openLink(currentTrack.buy_url); }
+  });
+  ui.shareBtn.addEventListener('click', () => {
+    if (!currentTrack) return;
+    haptic();
+    const botURL = `https://t.me/${CONFIG.botUsername}`;
+    const text = `Listening on Radio Mishor: ${currentTrack.artist} \u2014 ${currentTrack.title}`;
+    const url = new URL('https://t.me/share/url');
+    url.searchParams.set('url', botURL); url.searchParams.set('text', text);
+    openLink(url.href, true);
+  });
+  if ('mediaSession' in navigator) {
+    const actions = { play: () => { engine.start(); tick(); }, pause: () => engine.stop(), stop: () => engine.stop() };
+    for (const [action, handler] of Object.entries(actions)) {
+      try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) {}
+    }
+    for (const action of ['seekto', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack']) {
+      try { navigator.mediaSession.setActionHandler(action, null); } catch (_) {}
+    }
+  }
+  function resume() {
+    if (disposed) return;
+    clock.reanchor(); viewport(); tick(true); void refreshPlaylist();
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) resume(); });
+  window.addEventListener('online', () => {
+    // Release failed requests, but never resurrect audio the user explicitly stopped.
+    if (engine.wanted) for (const deck of engine.decks) if (deck.failure) deck.release();
+    resume();
+  });
+  window.addEventListener('offline', wake);
+  window.addEventListener('resize', viewport);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', viewport);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(measureTitle).observe(ui.trackInfo);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTitle).catch(() => {});
+  window.addEventListener('pagehide', () => {
+    disposed = true; engine.stop(); clearTimeout(tickTimer); clearTimeout(pollTimer);
+    if (fetchController) fetchController.abort();
+  });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) { disposed = false; resume(); }
+  });
+  $('telegramSDK').addEventListener('load', connectTelegram);
+  connectTelegram(); viewport(); tick(); void refreshPlaylist();
+  // Read-only diagnostics: no initData, cookies or Telegram user data are recorded.
+  window.RadioMishor = Object.freeze({
+    build: BUILD,
+    diagnostics: () => ({
+      build: BUILD, ...engine.diagnostics(), playlistError: lastFetchError,
+      pendingVersion: manager.pending && manager.pending.version,
+      switchAt: manager.applyAt, events: logs.map(event => ({ ...event }))
+    })
+  });
+})();
+
+</script>
 </body>
 </html>
