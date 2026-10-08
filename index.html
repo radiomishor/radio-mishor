@@ -704,7 +704,7 @@ const RadioCore = (() => {
     ui.playBtn.setAttribute('aria-pressed', String(wanted));
     ui.playBtn.setAttribute('aria-busy', String(wanted && state === 'buffering'));
     ui.playIcon.innerHTML = wanted ? STOP_ICON : PLAY_ICON;
-    ui.status.textContent = message || (state === 'playing' ? 'LIVE' : 'Tap Play to listen live');
+    ui.status.textContent = message || (state === 'playing' ? 'ON AIR' : 'Tap to listen live');
     ui.retryBtn.hidden = state !== 'error';
     if ('mediaSession' in navigator) {
       try { navigator.mediaSession.playbackState = state === 'playing' ? 'playing' : wanted ? 'none' : 'paused'; }
