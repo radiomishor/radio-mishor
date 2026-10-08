@@ -144,7 +144,7 @@
     <div id="bgA" class="bg-blur"></div><div id="bgB" class="bg-blur"></div>
   </div>
   <div id="app" class="app" data-state="loading">
-    <header class="header"><h1 class="logo">Radio Mishor</h1></header>
+    <header class="header"><h1 id="logo" class="logo">Radio Mishor</h1></header>
     <main class="artwork-zone" aria-label="Now on Radio Mishor">
       <div class="cover-container">
         <div class="placeholder" aria-hidden="true"><strong>MISHOR</strong><span>INDEPENDENT RADIO</span></div>
@@ -390,7 +390,10 @@ const RadioCore = (() => {
       this.engine = engine; this.audio = audio; this.name = name;
       this.item = null; this.generation = 0; this.operation = null;
       this.desired = false; this.initialSeek = true; this.failures = 0;
-      this.failure = null; this.retryAt = 0; this.gain = 0;
+      this.failure = null; this.retryAt = 0;
+      this.gain = 0; this.targetGain = 0; this.lastGainAt = engine.mono();
+      this.syncGain = 1; this.syncState = 'steady'; this.syncStarted = 0;
+      this.syncFrom = 1; this.pendingSeek = null; this.lastDrift = 0;
       this.waiting = false; this.lastAdvance = 0; this.lastPosition = 0;
       this.lastSeek = -Infinity; this.ignorePauseUntil = 0;
       audio.preload = 'none';
@@ -400,6 +403,10 @@ const RadioCore = (() => {
         audio.addEventListener(event, () => {
           if (!this.item) return;
           if (event === 'playing' || event === 'canplay' || event === 'seeked') this.waiting = false;
+          if (event === 'seeked' && this.syncState === 'seeking') this.beginFadeIn();
+          if (event === 'seeked' && this.syncState === 'initial-seeking') {
+            this.syncState = 'steady'; this.syncGain = 1;
+          }
           if (Math.abs(audio.currentTime - this.lastPosition) > 0.03) {
             this.lastPosition = audio.currentTime; this.lastAdvance = engine.mono();
           }
@@ -426,27 +433,52 @@ const RadioCore = (() => {
         }
       });
     }
+    resetAutomation(now = this.engine.mono()) {
+      this.gain = 0; this.targetGain = 0; this.lastGainAt = now;
+      this.syncGain = 1; this.syncState = 'steady'; this.syncStarted = now;
+      this.syncFrom = 1; this.pendingSeek = null; this.lastDrift = 0;
+      if (this.engine.canSetVolume) {
+        try { this.audio.volume = 0; } catch (_) {}
+      }
+    }
     bind(item, keepFailures = false) {
       this.release();
+      const now = this.engine.mono();
       this.item = item;
       if (!keepFailures) this.failures = 0;
       this.failure = null; this.retryAt = 0; this.initialSeek = true; this.waiting = false;
-      this.lastAdvance = this.engine.mono(); this.lastPosition = 0; this.lastSeek = -Infinity;
-      this.audio.preload = 'auto'; this.audio.src = item.track.url;
+      this.lastAdvance = now; this.lastPosition = 0; this.lastSeek = -Infinity;
+      this.resetAutomation(now);
+      this.syncGain = 0; this.syncState = 'initial';
+      this.audio.preload = 'auto'; this.audio.muted = true; this.audio.src = item.track.url;
       this.audio.load();
     }
     release() {
-      this.generation++; this.operation = null; this.desired = false; this.gain = 0;
-      this.ignorePauseUntil = this.engine.mono() + 750;
-      this.audio.muted = true; this.audio.pause();
+      const now = this.engine.mono();
+      this.generation++; this.operation = null; this.desired = false;
+      this.ignorePauseUntil = now + 750;
+      this.audio.muted = true;
+      if (this.engine.canSetVolume) {
+        try { this.audio.volume = 0; } catch (_) {}
+      }
+      try { this.audio.playbackRate = 1; } catch (_) {}
+      this.audio.pause();
       // Removing the src also cancels downloads of abandoned tracks.
       if (this.item) { this.audio.removeAttribute('src'); this.audio.load(); }
-      this.item = null; this.failure = null;
+      this.item = null; this.failure = null; this.initialSeek = true;
+      this.resetAutomation(now);
     }
     silence() {
-      this.desired = false; this.gain = 0;
-      this.ignorePauseUntil = this.engine.mono() + 750;
-      this.audio.muted = true; this.audio.pause();
+      const now = this.engine.mono();
+      this.desired = false; this.targetGain = 0; this.gain = 0;
+      this.syncGain = 1; this.syncState = 'steady'; this.pendingSeek = null;
+      this.lastGainAt = now; this.ignorePauseUntil = now + 750;
+      this.audio.muted = true;
+      if (this.engine.canSetVolume) {
+        try { this.audio.volume = 0; } catch (_) {}
+      }
+      try { this.audio.playbackRate = 1; } catch (_) {}
+      this.audio.pause();
     }
     fail(message, permanent = false) {
       if (!this.item || this.failure) return;
@@ -454,8 +486,11 @@ const RadioCore = (() => {
       this.failures++;
       this.retryAt = permanent || this.failures > 3 ? Infinity :
         this.engine.mono() + [1000, 3000, 8000][this.failures - 1];
-      this.operation = null;
+      this.operation = null; this.targetGain = 0; this.gain = 0;
       this.audio.muted = true;
+      if (this.engine.canSetVolume) {
+        try { this.audio.volume = 0; } catch (_) {}
+      }
       this.ignorePauseUntil = this.engine.mono() + 750;
       this.audio.pause();
       this.engine.log('audio-error', { deck: this.name, track: this.item.track.id, message, attempts: this.failures });
@@ -463,15 +498,129 @@ const RadioCore = (() => {
     audible() {
       const a = this.audio;
       return this.desired && !this.failure && !this.initialSeek && !a.paused && !a.ended &&
-        !a.seeking && !this.waiting && a.readyState >= 2;
+        !a.seeking && this.syncState !== 'seeking' && !this.waiting && a.readyState >= 2;
     }
-    setGain(gain) {
-      this.gain = clamp(gain, 0, 1);
+    beginFadeIn(now = this.engine.mono()) {
+      this.syncGain = 0; this.syncState = 'fading-in'; this.syncStarted = now;
+      this.syncFrom = 0; this.lastGainAt = now;
+    }
+    hardSeek(target, reason = 'initial') {
+      const now = this.engine.mono();
       const a = this.audio;
-      if (this.engine.mode === 'dual') {
-        try { a.volume = this.gain; } catch (_) { this.engine.useSingle(this); }
+      this.pendingSeek = null; this.syncGain = 0; this.gain = 0; this.lastGainAt = now;
+      a.muted = true;
+      if (this.engine.canSetVolume) {
+        try { a.volume = 0; } catch (_) {}
       }
-      a.muted = this.gain <= 0 || this.initialSeek || a.seeking || !!this.failure;
+      try {
+        if (Math.abs(a.currentTime - target) > 0.03) a.currentTime = target;
+        this.initialSeek = false; this.lastSeek = now; this.lastAdvance = now; this.lastPosition = target;
+        if (reason === 'initial') {
+          this.syncState = a.seeking ? 'initial-seeking' : 'steady';
+          this.syncGain = a.seeking ? 0 : 1;
+        } else {
+          this.syncState = a.seeking ? 'seeking' : 'fading-in';
+          this.syncGain = 0;
+        }
+        this.syncStarted = now;
+        if (reason !== 'initial') {
+          this.engine.log('resync-seek', { deck: this.name, track: this.item && this.item.track.id,
+            target: Number(target.toFixed(3)), reason });
+        }
+      } catch (error) {
+        this.syncState = 'initial'; this.initialSeek = true;
+        this.engine.log('seek-deferred', { deck: this.name, message: error.message });
+      }
+    }
+    requestSoftSeek(target, drift, reason = 'drift') {
+      const now = this.engine.mono();
+      this.pendingSeek = target; this.lastDrift = drift; this.lastAdvance = now;
+      if (this.syncState === 'fading-out' || this.syncState === 'seeking') return;
+      if (!this.engine.canSetVolume || !this.audible() || this.gain < 0.01) {
+        this.hardSeek(target, reason); return;
+      }
+      this.syncState = 'fading-out'; this.syncStarted = now;
+      this.syncFrom = Math.max(0, this.syncGain);
+      this.engine.log('resync-start', { deck: this.name, track: this.item && this.item.track.id,
+        drift: Number(drift.toFixed(3)), reason });
+    }
+    updateSync(now) {
+      const a = this.audio;
+      if (this.syncState === 'initial') { this.syncGain = 0; return; }
+      if (this.syncState === 'initial-seeking') {
+        if (a.seeking || a.readyState < 1) { this.syncGain = 0; return; }
+        this.syncState = 'steady'; this.syncGain = 1;
+      }
+      if (this.syncState === 'fading-out') {
+        const progress = clamp((now - this.syncStarted) / 140, 0, 1);
+        this.syncGain = this.syncFrom * Math.cos(progress * Math.PI / 2);
+        if (progress >= 1) {
+          const target = this.pendingSeek;
+          if (Number.isFinite(target)) this.hardSeek(target, 'soft');
+          else { this.syncState = 'steady'; this.syncGain = 1; }
+        }
+        return;
+      }
+      if (this.syncState === 'seeking') {
+        this.syncGain = 0;
+        if (!a.seeking && a.readyState >= 1) this.beginFadeIn(now);
+        return;
+      }
+      if (this.syncState === 'fading-in') {
+        if (a.seeking || a.paused || this.waiting || a.readyState < 2) {
+          this.syncGain = 0; this.syncStarted = now; return;
+        }
+        const progress = clamp((now - this.syncStarted) / 220, 0, 1);
+        this.syncGain = Math.sin(progress * Math.PI / 2);
+        if (progress >= 1) {
+          this.syncGain = 1; this.syncState = 'steady';
+          this.engine.log('resync-complete', { deck: this.name, track: this.item && this.item.track.id });
+        }
+        return;
+      }
+      this.syncGain = 1;
+    }
+    setGain(gain, immediate = false) {
+      const now = this.engine.mono();
+      this.targetGain = clamp(gain, 0, 1);
+      this.updateSync(now);
+      const desired = clamp(this.targetGain * this.syncGain, 0, 1);
+      const a = this.audio;
+      if (this.engine.canSetVolume) {
+        const elapsed = clamp(now - this.lastGainAt, 0, 250);
+        if (immediate || elapsed === 0) {
+          if (immediate) this.gain = desired;
+        } else {
+          // A short slew removes level steps when a delayed deck becomes ready.
+          const tau = desired > this.gain ? 70 : 55;
+          const alpha = 1 - Math.exp(-elapsed / tau);
+          this.gain += (desired - this.gain) * alpha;
+          if (Math.abs(this.gain - desired) < 0.001) this.gain = desired;
+        }
+        try { a.volume = clamp(this.gain, 0, 1); }
+        catch (_) {
+          this.engine.canSetVolume = false;
+          if (this.engine.mode === 'dual') this.engine.useSingle(this);
+        }
+      } else {
+        // Single-player fallback on platforms that ignore media-element volume.
+        this.gain = desired >= 0.999 ? 1 : 0;
+      }
+      const silent = this.engine.canSetVolume
+        ? this.gain <= 0.0005 && desired <= 0.0005
+        : this.gain === 0;
+      a.muted = silent || this.initialSeek || a.seeking || this.syncState === 'seeking' || !!this.failure;
+      this.lastGainAt = now;
+    }
+    needsFastTick() {
+      const desired = clamp(this.targetGain * this.syncGain, 0, 1);
+      return this.desired && !this.failure &&
+        (this.syncState !== 'steady' || Math.abs(this.gain - desired) > 0.002);
+    }
+    onResume() {
+      const now = this.engine.mono();
+      this.lastAdvance = now; this.ignorePauseUntil = now + 1000; this.waiting = false;
+      try { this.audio.playbackRate = 1; } catch (_) {}
     }
     ensure(item, force = false) {
       this.item = item; this.desired = true;
@@ -491,16 +640,13 @@ const RadioCore = (() => {
         }
         // A naturally ended tail must not be play()'d again before the next tick.
         if (a.ended && target >= a.duration - 0.5) return;
-        if (!a.seeking && (this.initialSeek || force ||
-            (Math.abs(a.currentTime - target) > 4 && now - this.lastSeek > 5000))) {
-          try {
-            if (Math.abs(a.currentTime - target) > 0.15) {
-              a.muted = true; a.currentTime = target;
-            }
-            this.initialSeek = false; this.lastSeek = now; this.lastAdvance = now;
-          } catch (error) {
-            this.engine.log('seek-deferred', { deck: this.name, message: error.message });
-          }
+        const drift = a.currentTime - target;
+        this.lastDrift = drift;
+        if (!a.seeking && this.initialSeek) {
+          this.hardSeek(target, 'initial');
+        } else if (!a.seeking && now - this.lastSeek > 5000 &&
+            ((force && Math.abs(drift) > 0.15) || Math.abs(drift) > 4)) {
+          this.requestSoftSeek(target, drift, force ? 'forced' : 'drift');
         }
       }
       if (now - this.lastAdvance > 20000 && this.engine.online()) {
@@ -539,12 +685,14 @@ const RadioCore = (() => {
   }
 
   class AudioEngine {
-    constructor({ createAudio, clock, mono, online = () => true, mode = 'dual', onState = () => {},
-                  onTrack = () => {}, onWake = () => {}, log = () => {} }) {
+    constructor({ createAudio, clock, mono, online = () => true, mode = 'dual', canSetVolume = true,
+                  onState = () => {}, onTrack = () => {}, onWake = () => {}, log = () => {} }) {
       this.clock = clock; this.mono = mono; this.online = online; this.mode = mode;
+      this.canSetVolume = canSetVolume;
       this.onState = onState; this.onTrack = onTrack; this.wake = onWake; this.log = log;
       this.schedule = null; this.wanted = false; this.state = 'loading'; this.message = '';
       this.busy = false; this.trackSignature = ''; this.lastStateSignature = '';
+      this.crossfadeActive = false; this.mixKey = ''; this.mixProgress = 1; this.lastMixAt = mono();
       this.decks = [new Deck(this, createAudio(), 'A'), new Deck(this, createAudio(), 'B')];
       this.singleDeck = this.decks[0];
     }
@@ -561,8 +709,12 @@ const RadioCore = (() => {
       for (const deck of this.decks) if (deck.failure) deck.release();
       this.tick(true);
     }
+    resume() {
+      for (const deck of this.decks) deck.onResume();
+      this.log('engine-resume', { wanted: this.wanted, state: this.state });
+    }
     stop(message = '', state = 'stopped') {
-      this.wanted = false;
+      this.wanted = false; this.crossfadeActive = false; this.mixKey = ''; this.mixProgress = 1;
       for (const deck of this.decks) deck.release();
       this.publish(state, message);
     }
@@ -571,9 +723,10 @@ const RadioCore = (() => {
       this.start();
     }
     useSingle(preferred) {
-      this.mode = 'single'; this.singleDeck = preferred;
+      this.mode = 'single'; this.singleDeck = preferred; this.crossfadeActive = false;
+      this.mixKey = ''; this.mixProgress = 1;
       for (const deck of this.decks) if (deck !== preferred) deck.release();
-      try { preferred.audio.volume = 1; } catch (_) {}
+      preferred.syncState = 'steady'; preferred.syncGain = 1; preferred.setGain(1, true);
       this.log('single-player-fallback', {});
       this.wake();
     }
@@ -585,12 +738,38 @@ const RadioCore = (() => {
         this.onState({ state, message, wanted: this.wanted });
       }
     }
+    mixAt(key, target, snap = false) {
+      const now = this.mono();
+      target = clamp(target, 0, 1);
+      if (this.mixKey !== key) {
+        this.mixKey = key;
+        // A new normal transition starts from the outgoing deck. Starting the
+        // app in the middle of a transition snaps to the live position.
+        this.mixProgress = snap ? target : target >= 1 ? 1 : 0;
+        this.lastMixAt = now;
+        return this.mixProgress;
+      }
+      const elapsed = clamp(now - this.lastMixAt, 0, 250);
+      this.lastMixAt = now;
+      if (snap || elapsed <= 0) {
+        if (snap) this.mixProgress = target;
+        return this.mixProgress;
+      }
+      // Move along one equal-power angle, not two independent volume ramps.
+      // This keeps combined power constant when a delayed deck joins.
+      const maximumStep = elapsed / 180;
+      const difference = target - this.mixProgress;
+      this.mixProgress += clamp(difference, -maximumStep, maximumStep);
+      if (Math.abs(this.mixProgress - target) < 0.0005) this.mixProgress = target;
+      return this.mixProgress;
+    }
     tick(force = false) {
       if (this.busy || !this.schedule) return;
       this.busy = true;
       try {
         const frame = frameAt(this.schedule, this.clock.now());
         if (!frame) {
+          this.crossfadeActive = false;
           for (const deck of this.decks) deck.silence();
           this.publish('scheduled', 'The broadcast has not started yet.'); return;
         }
@@ -599,6 +778,7 @@ const RadioCore = (() => {
           this.trackSignature = trackSignature; this.onTrack(frame.main.track);
         }
         if (!this.wanted) {
+          this.crossfadeActive = false;
           if (this.state === 'loading' || this.state === 'scheduled') this.publish('stopped');
           return;
         }
@@ -614,14 +794,36 @@ const RadioCore = (() => {
           deck.ensure(item, force);
           bindings.push({ item, deck });
         }
-        // Preserve the outgoing track at full volume until the incoming one can play.
-        // A late incoming track seeks to its current scheduled offset, never back to zero.
+        // Equal-power crossfade. If one deck is late, keep the available deck at
+        // full level; the gain slew below makes its eventual entrance inaudible.
         const main = bindings[0] && bindings[0].deck;
         const tail = bindings[1] && bindings[1].deck;
-        const mainReady = main && main.audible();
-        const tailReady = tail && tail.audible();
-        if (main) main.setGain(tailReady ? frame.progress : 1);
-        if (tail) tail.setGain(mainReady ? 1 - frame.progress : 1);
+        const mainReady = !!(main && main.audible());
+        const tailReady = !!(tail && tail.audible());
+        let mainGain = 0, tailGain = 0;
+        if (tail) {
+          const key = `${tail.item.key}>${main.item.key}`;
+          let effectiveProgress = this.mixProgress;
+          if (mainReady && tailReady) {
+            effectiveProgress = this.mixAt(key, frame.progress, force);
+          } else if (mainReady) {
+            // Never attenuate the only audible deck while its partner is stalled.
+            this.mixKey = key; this.mixProgress = 1; this.lastMixAt = this.mono();
+            effectiveProgress = 1;
+          } else if (tailReady) {
+            this.mixKey = key; this.mixProgress = 0; this.lastMixAt = this.mono();
+            effectiveProgress = 0;
+          }
+          const angle = effectiveProgress * Math.PI / 2;
+          mainGain = mainReady ? Math.sin(angle) : 0;
+          tailGain = tailReady ? Math.cos(angle) : 0;
+        } else {
+          this.mixKey = ''; this.mixProgress = 1; this.lastMixAt = this.mono();
+          mainGain = mainReady ? 1 : 0;
+        }
+        this.crossfadeActive = this.mode === 'dual' && !!tail && (mainReady || tailReady);
+        if (main) main.setGain(mainGain, true);
+        if (tail) tail.setGain(tailGain, true);
         const used = new Set(bindings.map(binding => binding.deck));
         for (const deck of this.decks) {
           if (used.has(deck)) continue;
@@ -639,14 +841,20 @@ const RadioCore = (() => {
         else this.publish('buffering', 'Connecting to live...');
       } finally { this.busy = false; }
     }
+    needsFastTick() {
+      return this.crossfadeActive || this.decks.some(deck => deck.needsFastTick());
+    }
     diagnostics() {
       return {
         state: this.state, wanted: this.wanted, mode: this.mode, clock: this.clock.source,
-        version: this.schedule && this.schedule.version,
+        version: this.schedule && this.schedule.version, crossfadeActive: this.crossfadeActive,
+        mixProgress: this.mixProgress,
         decks: this.decks.map(d => ({
           name: d.name, track: d.item && d.item.track.id, occurrence: d.item && d.item.key,
           time: d.audio.currentTime, ready: d.audio.readyState, paused: d.audio.paused,
-          gain: d.gain, muted: d.audio.muted, error: d.failure, failures: d.failures
+          gain: d.gain, targetGain: d.targetGain, syncGain: d.syncGain, syncState: d.syncState,
+          drift: d.lastDrift, muted: d.audio.muted, waiting: d.waiting,
+          error: d.failure, failures: d.failures
         }))
       };
     }
@@ -667,9 +875,9 @@ const RadioCore = (() => {
     fetchTimeoutMilliseconds: 12000,
     audioMode: 'auto'         // 'auto' or 'single'. Auto is conservative on iOS.
   });
-  const BUILD = 'mishor-2.0.0';
+  const BUILD = 'mishor-2.0.1';
   const $ = id => document.getElementById(id);
-  const ui = Object.fromEntries(['app', 'playBtn', 'playIcon', 'status', 'retryBtn', 'trackInfo',
+  const ui = Object.fromEntries(['app', 'logo', 'playBtn', 'playIcon', 'status', 'retryBtn', 'trackInfo',
     'trackTitle', 'titleA', 'titleB', 'accessibleTrack', 'buyBtn', 'shareBtn'].map(id => [id, $(id)]));
   const PLAY_ICON = '<path d="M7 5.5v13a1.5 1.5 0 0 0 2.27 1.28l10.5-6.5a1.5 1.5 0 0 0 0-2.56L9.27 4.22A1.5 1.5 0 0 0 7 5.5z"/>';
   const STOP_ICON = '<rect x="5.5" y="5.5" width="13" height="13" rx="2.5"/>';
@@ -690,10 +898,11 @@ const RadioCore = (() => {
     try { const audio = new Audio(); audio.volume = .5; return Math.abs(audio.volume - .5) < .01; }
     catch (_) { return false; }
   }
-  const mode = CONFIG.audioMode === 'single' || isIOS || !supportsVolume() ? 'single' : 'dual';
+  const volumeSupported = supportsVolume();
+  const mode = CONFIG.audioMode === 'single' || isIOS || !volumeSupported ? 'single' : 'dual';
   const engine = new RadioCore.AudioEngine({
     createAudio: () => new Audio(), clock, mono: () => performance.now(),
-    online: () => navigator.onLine !== false, mode, onState: renderState,
+    online: () => navigator.onLine !== false, mode, canSetVolume: volumeSupported && !isIOS, onState: renderState,
     onTrack: renderTrack, onWake: wake, log
   });
 
@@ -783,9 +992,9 @@ const RadioCore = (() => {
     clearTimeout(tickTimer);
     engine.setSchedule(manager.advance(clock.now()));
     engine.tick(force);
-    const frame = engine.schedule ? RadioCore.frameAt(engine.schedule, clock.now()) : null;
-    const delay = engine.wanted ? frame && frame.tail && engine.mode === 'dual' ? 80 : 250 :
-      document.hidden ? 5000 : 1000;
+    const delay = engine.wanted
+      ? document.hidden ? 250 : engine.needsFastTick() ? 20 : 250
+      : document.hidden ? 5000 : 1000;
     tickTimer = setTimeout(tick, delay);
   }
   function wake() {
@@ -875,7 +1084,7 @@ const RadioCore = (() => {
     if (telegram.isVersionAtLeast && telegram.isVersionAtLeast('8.0')) {
       safe(() => telegram.onEvent('safeAreaChanged', viewport));
       safe(() => telegram.onEvent('contentSafeAreaChanged', viewport));
-      safe(() => telegram.onEvent('activated', resume));
+      safe(() => telegram.onEvent('activated', () => resume('telegram-activated')));
     }
     if (telegram.platform === 'ios' && engine.mode !== 'single') engine.useSingle(engine.decks[0]);
     viewport();
@@ -922,15 +1131,20 @@ const RadioCore = (() => {
       try { navigator.mediaSession.setActionHandler(action, null); } catch (_) {}
     }
   }
-  function resume() {
+  function resume(source = 'visible') {
     if (disposed) return;
-    clock.reanchor(); viewport(); tick(true); void refreshPlaylist();
+    clock.reanchor(); viewport(); engine.resume();
+    log('app-resume', { source });
+    tick(); void refreshPlaylist();
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) resume(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) log('app-hidden');
+    else resume('visibilitychange');
+  });
   window.addEventListener('online', () => {
     // Release failed requests, but never resurrect audio the user explicitly stopped.
     if (engine.wanted) for (const deck of engine.decks) if (deck.failure) deck.release();
-    resume();
+    resume('online');
   });
   window.addEventListener('offline', wake);
   window.addEventListener('resize', viewport);
@@ -942,8 +1156,48 @@ const RadioCore = (() => {
     if (fetchController) fetchController.abort();
   });
   window.addEventListener('pageshow', event => {
-    if (event.persisted) { disposed = false; resume(); }
+    if (event.persisted) { disposed = false; resume('pageshow'); }
   });
+  async function copyDiagnostics() {
+    const payload = JSON.stringify({
+      capturedAt: new Date().toISOString(), userAgent: navigator.userAgent,
+      hidden: document.hidden, online: navigator.onLine, ...window.RadioMishor.diagnostics()
+    }, null, 2);
+    let copied = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(payload); copied = true;
+      }
+    } catch (_) {}
+    if (!copied) {
+      const area = document.createElement('textarea');
+      area.value = payload; area.setAttribute('readonly', '');
+      area.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(area); area.select();
+      try { copied = document.execCommand('copy'); } catch (_) {}
+      area.remove();
+    }
+    log(copied ? 'diagnostics-copied' : 'diagnostics-copy-failed');
+    if (copied) {
+      haptic();
+      const previous = ui.status.textContent;
+      ui.status.textContent = 'Diagnostics copied';
+      setTimeout(() => {
+        if (ui.status.textContent === 'Diagnostics copied') {
+          ui.status.textContent = engine.message || (engine.state === 'playing' ? 'LIVE' : 'Tap Play to listen live');
+        }
+      }, 1600);
+    }
+  }
+  let diagnosticsHold = null;
+  const cancelDiagnosticsHold = () => { clearTimeout(diagnosticsHold); diagnosticsHold = null; };
+  ui.logo.addEventListener('pointerdown', () => {
+    cancelDiagnosticsHold(); diagnosticsHold = setTimeout(() => { diagnosticsHold = null; void copyDiagnostics(); }, 1600);
+  });
+  for (const event of ['pointerup', 'pointercancel', 'pointerleave']) {
+    ui.logo.addEventListener(event, cancelDiagnosticsHold);
+  }
+
   $('telegramSDK').addEventListener('load', connectTelegram);
   connectTelegram(); viewport(); tick(); void refreshPlaylist();
   // Read-only diagnostics: no initData, cookies or Telegram user data are recorded.
